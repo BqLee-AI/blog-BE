@@ -13,7 +13,7 @@ type User struct {
 }
 
 func (User) TableName() string {
-	return "user" // 返回你想要的精确表名
+	return "users" // 返回你想要的精确表名
 }
 
 /*

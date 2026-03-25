@@ -13,7 +13,7 @@ var (
 
 func InitPgSql() (err error) {
 	// 1. 配置连接字符串 (根据你的数据库修改参数)
-	dsn := "host=localhost user=myuser password=mypassword dbname=mydb port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+	dsn := "host=localhost user=admin password=123456 dbname=mydb port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 
 	// 2. 建立连接
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
@@ -28,6 +28,10 @@ func InitPgSql() (err error) {
 	if err = sqlDB.Ping(); err != nil {
 		return err
 	}
+
+	// 迁移模型
+	DB.AutoMigrate()
+
 	return nil
 }
 

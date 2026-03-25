@@ -35,16 +35,16 @@ func NewMailConfig() *MailConfig {
 // message 发送消息
 func SendMail(mailFrom string, mailTo string) (string, error) {
 	mailConfig := NewMailConfig()
-	subject := "验证码"
-	code := GenerateCode()
 	//接收消息的邮箱不能为空
 	if mailTo == "" {
 		return "", errors.New("mailTo:接收消息的邮箱不能为空")
 	}
+
+	code := GenerateCode()
 	m := gomail.NewMessage()
 	m.SetHeader("From", m.FormatAddress(mailConfig.User, mailFrom)) //这种方式可以添加别名，
 	m.SetHeader("To", mailTo)                                       //发送给用户
-	m.SetHeader("Subject", subject)                                 //设置邮件主题
+	m.SetHeader("Subject", "验证码")                                   //设置邮件主题
 	m.SetBody("text/html", retHTMLMessage(mailTo, code))            //设置邮件正文
 
 	//连接
