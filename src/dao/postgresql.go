@@ -1,7 +1,10 @@
 package dao
 
 import (
+	"fmt"
 	"log"
+
+	"blog-BE/src/config"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -12,10 +15,17 @@ var (
 )
 
 func InitPgSql() (err error) {
-	// 1. 配置连接字符串 (根据你的数据库修改参数)
-	dsn := "host=localhost user=admin password=123456 dbname=mydb port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+	// 构建连接字符串，使用配置中的数据库参数
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=Asia/Shanghai",
+		config.AppConfig.DBHost,
+		config.AppConfig.DBUser,
+		config.AppConfig.DBPassword,
+		config.AppConfig.DBName,
+		config.AppConfig.DBPort,
+	)
 
-	// 2. 建立连接
+	// 建立连接
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return err

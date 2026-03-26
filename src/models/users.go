@@ -1,7 +1,7 @@
 package models
 
 import (
-	"Blog/blog-BE/dao"
+	"blog-BE/src/dao"
 )
 
 type User struct {

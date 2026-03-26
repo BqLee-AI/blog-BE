@@ -1,7 +1,7 @@
 package routers
 
 import (
-	"Blog/blog-BE/handler"
+	"blog-BE/src/handler"
 
 	"github.com/gin-gonic/gin"
 )

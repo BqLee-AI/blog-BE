@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"Blog/blog-BE/models"
-	"Blog/blog-BE/service"
+	"blog-BE/src/models"
+	"blog-BE/src/service"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
