@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Dependencies
+vendor/
+node_modules/
+
+# Build outputs
+bin/
+dist/
+
+# Test
+*.test
+*.out
+
+# Temp files
+tmp/
+.tmp/
+
+# OS
+Thumbs.db
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Documentation
+README.md
+CONTRIBUTING.md
+LICENSE
