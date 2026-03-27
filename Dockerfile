@@ -34,11 +34,6 @@ WORKDIR /app
 # 从构建阶段复制二进制文件
 COPY --from=builder /build/blog-api .
 
-# 复制.env文件（开发环境）
-# 警告：生产环境需要删除此行，改用 Docker Secret 或环境变量注入
-# 参考 SECURITY.md 了解更多信息
-COPY .env .
-
 # 设置文件权限
 RUN chown -R app:app /app && chmod 400 .env
 
