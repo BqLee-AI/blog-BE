@@ -8,21 +8,42 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// 统一响应结构
+type Response struct {
+	Message   string      `json:"message"`
+	Data      interface{} `json:"data"`
+	RequestID string      `json:"requestId"`
+	Code      string      `json:"code,omitempty"`
+}
+
+func newResponse(message string, data interface{}, code string) Response {
+	return Response{
+		Message:   message,
+		Data:      data,
+		RequestID: "trace-id", // 可从 context 获取
+		Code:      code,
+	}
+}
+
 func LoginHandler(c *gin.Context) {
 	email := c.PostForm("email")
 	password := c.PostForm("password")
 	user, err := models.FindUserByEmail(email)
 
 	if err != nil || user.Password != password {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Invalid email or password",
-		})
+		c.JSON(http.StatusUnauthorized, newResponse(
+			"Invalid email or password",
+			nil,
+			"AUTH_FAILED",
+		))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
-	})
+	c.JSON(http.StatusOK, newResponse(
+		"Login successful",
+		gin.H{"user_id": user.ID},
+		"",
+	))
 }
 
 func RegisterHandler(c *gin.Context) {
@@ -39,19 +60,25 @@ func RegisterHandler(c *gin.Context) {
 	// 验证码
 	realcode, err := service.SendMail("", email)
 	if err != nil || realcode == "" || realcode != code {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed to send verification code",
-		})
+		c.JSON(http.StatusInternalServerError, newResponse(
+			"Failed to send verification code",
+			nil,
+			"VERIFICATION_FAILED",
+		))
 		return
 	}
 
 	if err := models.CreateUser(user); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Registration failed",
-		})
+		c.JSON(http.StatusInternalServerError, newResponse(
+			"Registration failed",
+			nil,
+			"REGISTRATION_FAILED",
+		))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Registration successful",
-	})
+	c.JSON(http.StatusOK, newResponse(
+		"Registration successful",
+		gin.H{"user_id": user.ID},
+		"",
+	))
 }
