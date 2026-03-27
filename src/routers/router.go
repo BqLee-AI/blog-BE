@@ -10,8 +10,13 @@ func SetupRouter() *gin.Engine {
 	// 创建 Gin 引擎
 	router := gin.Default()
 
-	router.GET("/login", handler.LoginHandler)
-	router.POST("/register", handler.RegisterHandler)
+	vi := router.Group("/api/v1")
+	{
+		// 用户认证相关路由
+		auth := vi.Group("/auth")
+		auth.GET("/login", handler.LoginHandler)
+		auth.POST("/register", handler.RegisterHandler)
+	}
 
 	return router
 }
