@@ -12,10 +12,10 @@ func SetupRouter() *gin.Engine {
 	router := gin.Default()
 	router.Use(middleware.CORSMiddleware())
 
-	vi := router.Group("/api/v1")
+	v1 := router.Group("/api/v1")
 	{
 		// 用户认证相关路由
-		auth := vi.Group("/auth")
+		auth := v1.Group("/auth")
 		// 登录接口支持 GET 和 POST 两种方式，方便前端调试和兼容不同请求习惯
 		auth.GET("/login", handler.LoginHandler)
 		auth.POST("/login", handler.LoginHandler)
