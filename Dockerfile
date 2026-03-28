@@ -21,7 +21,7 @@ COPY src ./src
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o blog-api main.go
 
 # 第二阶段：运行阶段
-FROM alpine:latest
+FROM alpine:3.19
 
 # 安装必要的工具（如果需要调试）
 RUN apk --no-cache add ca-certificates tzdata
