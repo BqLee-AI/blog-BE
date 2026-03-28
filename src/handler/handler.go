@@ -14,15 +14,27 @@ import (
 type Response struct {
 	Message   string      `json:"message"`
 	Data      interface{} `json:"data"`
-	RequestID string      `json:"requestId"`
+	RequestID string      `json:"requestId,omitempty"`
 	Code      string      `json:"code,omitempty"`
 }
 
-func newResponse(message string, data interface{}, code string) Response {
+func newResponse(c *gin.Context, message string, data interface{}, code string) Response {
+	requestID := strings.TrimSpace(c.GetHeader("X-Request-ID"))
+	if requestID == "" {
+		requestID = strings.TrimSpace(c.GetHeader("X-Trace-ID"))
+	}
+	if requestID == "" {
+		if value, exists := c.Get("request_id"); exists {
+			if id, ok := value.(string); ok {
+				requestID = strings.TrimSpace(id)
+			}
+		}
+	}
+
 	return Response{
 		Message:   message,
 		Data:      data,
-		RequestID: "trace-id", // 可从 context 获取
+		RequestID: requestID,
 		Code:      code,
 	}
 }
@@ -36,6 +48,7 @@ func LoginHandler(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, newResponse(
+			c,
 			"Invalid login payload",
 			nil,
 			"INVALID_REQUEST",
@@ -47,6 +60,7 @@ func LoginHandler(c *gin.Context) {
 
 	if err != nil || user.Password != req.Password {
 		c.JSON(http.StatusUnauthorized, newResponse(
+			c,
 			"Invalid email or password",
 			nil,
 			"AUTH_FAILED",
@@ -57,6 +71,7 @@ func LoginHandler(c *gin.Context) {
 	tokens, err := utils.GenerateTokenPair(user.ID, user.Username, user.RoleID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, newResponse(
+			c,
 			"Failed to generate token",
 			nil,
 			"TOKEN_GENERATION_FAILED",
@@ -65,6 +80,7 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, newResponse(
+		c,
 		"Login successful",
 		gin.H{
 			"user": gin.H{
@@ -92,6 +108,7 @@ func RefreshTokenHandler(c *gin.Context) {
 	}
 	if refreshToken == "" {
 		c.JSON(http.StatusBadRequest, newResponse(
+			c,
 			"Refresh token is required",
 			nil,
 			"TOKEN_MISSING",
@@ -102,6 +119,7 @@ func RefreshTokenHandler(c *gin.Context) {
 	tokens, err := utils.RefreshTokenPair(refreshToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, newResponse(
+			c,
 			"Invalid or expired refresh token",
 			nil,
 			"TOKEN_INVALID",
@@ -110,6 +128,7 @@ func RefreshTokenHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, newResponse(
+		c,
 		"Token refreshed successfully",
 		gin.H{
 			"token_type":         "Bearer",
@@ -126,6 +145,7 @@ func MeHandler(c *gin.Context) {
 	claims, ok := utilsClaimsFromContext(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, newResponse(
+			c,
 			"Unauthorized",
 			nil,
 			"TOKEN_MISSING",
@@ -134,6 +154,7 @@ func MeHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, newResponse(
+		c,
 		"Token is valid",
 		gin.H{
 			"user_id":    claims.UserID,
@@ -170,6 +191,7 @@ func RegisterHandler(c *gin.Context) {
 	realcode, err := service.SendMail("", email)
 	if err != nil || realcode == "" || realcode != code {
 		c.JSON(http.StatusInternalServerError, newResponse(
+			c,
 			"Failed to send verification code",
 			nil,
 			"VERIFICATION_FAILED",
@@ -179,6 +201,7 @@ func RegisterHandler(c *gin.Context) {
 
 	if err := models.CreateUser(user); err != nil {
 		c.JSON(http.StatusInternalServerError, newResponse(
+			c,
 			"Registration failed",
 			nil,
 			"REGISTRATION_FAILED",
@@ -186,6 +209,7 @@ func RegisterHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, newResponse(
+		c,
 		"Registration successful",
 		gin.H{"user_id": user.ID},
 		"",
