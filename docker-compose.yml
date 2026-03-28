@@ -42,6 +42,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       DB_SSLMODE: disable
+      GIN_MODE: ${GIN_MODE:-release}
+      GIN_TRUSTED_PROXIES: ${GIN_TRUSTED_PROXIES:-127.0.0.1,::1}
       JWT_PRIVATE_KEY_PATH: /app/secrets/jwt_private.pem
       JWT_PUBLIC_KEY_PATH: /app/secrets/jwt_public.pem
       TZ: Asia/Shanghai
