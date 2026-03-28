@@ -29,11 +29,16 @@ type Config struct {
 
 var AppConfig *Config
 
-// LoadConfig 从 .env 文件加载配置
+// LoadConfig 从 .env 文件加载配置；如果文件不存在，则继续使用进程环境变量和默认值。
 func LoadConfig(envPath string) error {
-	// 加载 .env 文件
-	if err := godotenv.Load(envPath); err != nil {
-		return fmt.Errorf("failed to load .env file: %v", err)
+	if envPath != "" {
+		if _, err := os.Stat(envPath); err == nil {
+			if err := godotenv.Load(envPath); err != nil {
+				return fmt.Errorf("failed to load .env file: %v", err)
+			}
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to check .env file: %v", err)
+		}
 	}
 
 	AppConfig = &Config{
