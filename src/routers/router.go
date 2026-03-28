@@ -1,8 +1,10 @@
 package routers
 
 import (
+	"blog-BE/src/config"
 	"blog-BE/src/handler"
 	"blog-BE/src/middleware"
+	"log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -10,6 +12,9 @@ import (
 func SetupRouter() *gin.Engine {
 	// 创建 Gin 引擎
 	router := gin.Default()
+	if err := router.SetTrustedProxies(config.AppConfig.TrustedProxies); err != nil {
+		log.Fatalf("failed to set trusted proxies: %v", err)
+	}
 	router.Use(middleware.RequestIDMiddleware())
 	router.Use(middleware.CORSMiddleware())
 

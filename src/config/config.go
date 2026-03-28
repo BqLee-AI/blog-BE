@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -23,8 +24,9 @@ type Config struct {
 	MailPassword string
 
 	// App config
-	AppPort int
-	GinMode string
+	AppPort        int
+	GinMode        string
+	TrustedProxies []string
 }
 
 var AppConfig *Config
@@ -56,8 +58,9 @@ func LoadConfig(envPath string) error {
 		MailPassword: getEnv("MAIL_PASSWORD", ""),
 
 		// App config
-		AppPort: getEnvAsInt("APP_PORT", 8080),
-		GinMode: getEnv("GIN_MODE", "debug"),
+		AppPort:        getEnvAsInt("APP_PORT", 8080),
+		GinMode:        getEnv("GIN_MODE", "debug"),
+		TrustedProxies: getEnvAsList("GIN_TRUSTED_PROXIES", []string{"127.0.0.1", "::1"}),
 	}
 
 	return nil
@@ -78,4 +81,26 @@ func getEnvAsInt(name string, defaultVal int) int {
 		return value
 	}
 	return defaultVal
+}
+
+func getEnvAsList(name string, defaultVal []string) []string {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return defaultVal
+	}
+
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+
+	if len(result) == 0 {
+		return defaultVal
+	}
+
+	return result
 }
