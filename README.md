@@ -61,7 +61,8 @@ blog-BE/
 | `MAIL_USERNAME` | 发件邮箱 | 空 |
 | `MAIL_PASSWORD` | 邮箱授权码 | 空 |
 | `APP_PORT` | 服务端口 | `8080` |
-| `GIN_MODE` | Gin 运行模式 | `debug` |
+| `GIN_MODE` | Gin 运行模式 | `release` |
+| `GIN_TRUSTED_PROXIES` | Gin 信任代理列表 | `127.0.0.1,::1` |
 | `JWT_PRIVATE_KEY_PATH` | JWT 私钥文件路径 | `./secrets/jwt_private.pem` |
 | `JWT_PUBLIC_KEY_PATH` | JWT 公钥文件路径 | `./secrets/jwt_public.pem` |
 | `JWT_ACCESS_TTL` | Access token 有效期 | `15m` |
