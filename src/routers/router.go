@@ -10,6 +10,7 @@ import (
 func SetupRouter() *gin.Engine {
 	// 创建 Gin 引擎
 	router := gin.Default()
+	router.Use(middleware.CORSMiddleware())
 
 	vi := router.Group("/api/v1")
 	{
