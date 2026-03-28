@@ -34,6 +34,11 @@ Thumbs.db
 Dockerfile
 docker-compose.yml
 
+# Local env files
+.env
+.env.*
+!.env.example
+
 # Documentation
 README.md
 CONTRIBUTING.md
