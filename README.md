@@ -83,8 +83,11 @@ openssl rsa -pubout -in secrets/jwt_private.pem -out secrets/jwt_public.pem
 1. 创建 `.env` 文件
 
    ```bash
+   # Windows
    copy .env.example .env
-   ```
+   
+   # macOS / Linux
+   cp .env.example .env
 
 2. 启动 PostgreSQL
 
