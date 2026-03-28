@@ -3,6 +3,11 @@
 .env.local
 .env.*.local
 
+# JWT 密钥文件（本地生成，不要提交）
+secrets/
+*.pem
+*.pem.pub
+
 # IDE
 .vscode/
 .idea/
