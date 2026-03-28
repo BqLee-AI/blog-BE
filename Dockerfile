@@ -13,8 +13,9 @@ COPY go.mod go.sum ./
 # 下载依赖
 RUN go mod download
 
-# 复制源代码
-COPY . .
+# 复制源代码（白名单方式，避免把本地 .env 等敏感文件带入镜像）
+COPY main.go ./
+COPY src ./src
 
 # 构建应用
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o blog-api main.go
@@ -35,7 +36,7 @@ WORKDIR /app
 COPY --from=builder /build/blog-api .
 
 # 设置文件权限
-RUN chown -R app:app /app && chmod 400 .env
+RUN chown -R app:app /app
 
 # 切换用户
 USER app
