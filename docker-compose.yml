@@ -9,7 +9,7 @@ services:
       POSTGRES_DB: ${DB_NAME}
       TZ: Asia/Shanghai
     ports:
-      - "${DB_PORT}:5432"
+      - "${DB_HOST_PORT:-5432}:5432"
     volumes:
       # 数据持久化
       - postgres_data:/var/lib/postgresql/data

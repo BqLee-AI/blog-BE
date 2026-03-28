@@ -52,6 +52,7 @@ blog-BE/
 | --- | --- | --- |
 | `DB_HOST` | PostgreSQL 地址 | `localhost` |
 | `DB_PORT` | PostgreSQL 端口 | `5432` |
+| `DB_HOST_PORT` | Docker Compose 下宿主机映射端口 | `5432` |
 | `DB_USER` | 数据库用户名 | `admin` |
 | `DB_PASSWORD` | 数据库密码 | `123456` |
 | `DB_NAME` | 数据库名称 | `mydb` |
