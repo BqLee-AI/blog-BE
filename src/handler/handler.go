@@ -3,7 +3,9 @@ package handler
 import (
 	"blog-BE/src/models"
 	"blog-BE/src/service"
+	"blog-BE/src/utils"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,9 +27,26 @@ func newResponse(message string, data interface{}, code string) Response {
 	}
 }
 
+// readLoginCredential 从 POST 表单或 GET 查询参数中读取登录凭证（email 或 password）；优先使用 POST 表单。
+func readLoginCredential(c *gin.Context, key string) string {
+	if value := strings.TrimSpace(c.PostForm(key)); value != "" {
+		return value
+	}
+	return strings.TrimSpace(c.Query(key))
+}
+
 func LoginHandler(c *gin.Context) {
-	email := c.PostForm("email")
-	password := c.PostForm("password")
+	email := readLoginCredential(c, "email")
+	password := readLoginCredential(c, "password")
+	if email == "" || password == "" {
+		c.JSON(http.StatusBadRequest, newResponse(
+			"Email and password are required",
+			nil,
+			"INVALID_REQUEST",
+		))
+		return
+	}
+
 	user, err := models.FindUserByEmail(email)
 
 	if err != nil || user.Password != password {
@@ -39,11 +58,105 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
+	tokens, err := utils.GenerateTokenPair(user.ID, user.Username, user.RoleID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, newResponse(
+			"Failed to generate token",
+			nil,
+			"TOKEN_GENERATION_FAILED",
+		))
+		return
+	}
+
 	c.JSON(http.StatusOK, newResponse(
 		"Login successful",
-		gin.H{"user_id": user.ID},
+		gin.H{
+			"user": gin.H{
+				"user_id":  user.ID,
+				"username": user.Username,
+				"email":    user.Email,
+				"role_id":  user.RoleID,
+			},
+			"tokens": gin.H{
+				"token_type":         "Bearer",
+				"access_token":       tokens.AccessToken,
+				"refresh_token":      tokens.RefreshToken,
+				"access_expires_at":  tokens.AccessExpiresAt,
+				"refresh_expires_at": tokens.RefreshExpiresAt,
+			},
+		},
 		"",
 	))
+}
+
+func RefreshTokenHandler(c *gin.Context) {
+	refreshToken := strings.TrimSpace(c.PostForm("refresh_token"))
+	if refreshToken == "" {
+		refreshToken = utils.ExtractBearerToken(c.GetHeader("Authorization"))
+	}
+	if refreshToken == "" {
+		c.JSON(http.StatusBadRequest, newResponse(
+			"Refresh token is required",
+			nil,
+			"TOKEN_MISSING",
+		))
+		return
+	}
+
+	tokens, err := utils.RefreshTokenPair(refreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, newResponse(
+			"Invalid or expired refresh token",
+			nil,
+			"TOKEN_INVALID",
+		))
+		return
+	}
+
+	c.JSON(http.StatusOK, newResponse(
+		"Token refreshed successfully",
+		gin.H{
+			"token_type":         "Bearer",
+			"access_token":       tokens.AccessToken,
+			"refresh_token":      tokens.RefreshToken,
+			"access_expires_at":  tokens.AccessExpiresAt,
+			"refresh_expires_at": tokens.RefreshExpiresAt,
+		},
+		"",
+	))
+}
+
+func MeHandler(c *gin.Context) {
+	claims, ok := utilsClaimsFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, newResponse(
+			"Unauthorized",
+			nil,
+			"TOKEN_MISSING",
+		))
+		return
+	}
+
+	c.JSON(http.StatusOK, newResponse(
+		"Token is valid",
+		gin.H{
+			"user_id":    claims.UserID,
+			"username":   claims.Username,
+			"role_id":    claims.RoleID,
+			"token_type": claims.TokenType,
+		},
+		"",
+	))
+}
+
+func utilsClaimsFromContext(c *gin.Context) (*utils.Claims, bool) {
+	value, exists := c.Get("jwtClaims")
+	if !exists {
+		return nil, false
+	}
+
+	claims, ok := value.(*utils.Claims)
+	return claims, ok
 }
 
 func RegisterHandler(c *gin.Context) {
