@@ -30,7 +30,7 @@ jobs:
             - name: Deploy to server
               uses: appleboy/ssh-action@v1.0.3
               with:
-                  host: ${{ secrets.BLOG_DEPLOY_HOST }}
+                  host: ${{ secrets.BLOG_DEPLOY_IP }}
                   username: ${{ secrets.BLOG_DEPLOY_USER }}
                   key: ${{ secrets.BLOG_DEPLOY_KEY }}
                   port: ${{ secrets.BLOG_DEPLOY_PORT || 22 }}
