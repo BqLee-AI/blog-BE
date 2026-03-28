@@ -36,7 +36,7 @@ func FindUserByID(id uint) (*User, error) {
 
 func FindUserByUsername(username string) (*User, error) {
 	var user User
-	if err := dao.DB.First(&user, username).Error; err != nil {
+	if err := dao.DB.Where("username = ?", username).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -44,7 +44,7 @@ func FindUserByUsername(username string) (*User, error) {
 
 func FindUserByEmail(email string) (*User, error) {
 	var user User
-	if err := dao.DB.First(&user, email).Error; err != nil {
+	if err := dao.DB.Where("email = ?", email).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
