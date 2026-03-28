@@ -9,6 +9,7 @@
 - GORM
 - PostgreSQL
 - gomail
+- RSA JWT
 
 ## 功能说明
 
@@ -16,7 +17,7 @@
 - 使用 PostgreSQL 作为数据存储
 - 启动时自动连接数据库并迁移 `users` 表
 - 注册时发送邮件验证码
-- 登录时根据邮箱和密码校验用户身份
+- 登录时根据邮箱和密码校验用户身份，并签发 RSA access/refresh 双 token
 
 ## 目录结构
 
@@ -60,6 +61,22 @@ blog-BE/
 | `MAIL_PASSWORD` | 邮箱授权码 | 空 |
 | `APP_PORT` | 服务端口 | `8080` |
 | `GIN_MODE` | Gin 运行模式 | `debug` |
+| `JWT_PRIVATE_KEY_PATH` | JWT 私钥文件路径 | `./secrets/jwt_private.pem` |
+| `JWT_PUBLIC_KEY_PATH` | JWT 公钥文件路径 | `./secrets/jwt_public.pem` |
+| `JWT_ACCESS_TTL` | Access token 有效期 | `15m` |
+| `JWT_REFRESH_TTL` | Refresh token 有效期 | `168h` |
+
+## 生成 JWT 密钥
+
+先在项目根目录创建 `secrets` 目录，然后生成一对 RSA PEM 文件：
+
+```bash
+mkdir secrets
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/jwt_private.pem
+openssl rsa -pubout -in secrets/jwt_private.pem -out secrets/jwt_public.pem
+```
+
+生成后，Docker Compose 会把 `./secrets` 目录挂载到容器内的 `/app/secrets`，应用会自动读取这两个文件。
 
 ## 本地运行
 
@@ -94,6 +111,7 @@ docker compose up --build
 
 - `db` 服务会使用 `.env` 中的数据库配置
 - `app` 服务会自动连接 `db` 容器
+- `app` 服务会读取挂载到 `/app/secrets` 的 JWT PEM 文件
 - 数据会持久化到名为 `postgres_data` 的卷
 
 ## API 接口
@@ -102,7 +120,7 @@ docker compose up --build
 
 ### 登录
 
-- 方法：`GET`
+- 方法：`GET` 或 `POST`
 - 路径：`/api/v1/auth/login`
 - 参数：`email`、`password`
 - 参数来源：表单参数或表单编码请求体
@@ -113,11 +131,37 @@ docker compose up --build
 {
   "message": "Login successful",
   "data": {
-    "user_id": 1
+    "user": {
+      "user_id": 1,
+      "username": "demo",
+      "email": "demo@example.com",
+      "role_id": 0
+    },
+    "tokens": {
+      "token_type": "Bearer",
+      "access_token": "eyJ...",
+      "refresh_token": "eyJ...",
+      "access_expires_at": "2026-03-28T12:00:00Z",
+      "refresh_expires_at": "2026-04-04T12:00:00Z"
+    }
   },
   "requestId": "trace-id"
 }
 ```
+
+### 刷新令牌
+
+- 方法：`POST`
+- 路径：`/api/v1/auth/refresh`
+- 参数：`refresh_token`，或者通过 `Authorization: Bearer <token>` 传入
+- 行为：校验 refresh token 后签发新的 access/refresh 双 token
+
+### 当前用户
+
+- 方法：`GET`
+- 路径：`/api/v1/auth/me`
+- 参数：`Authorization: Bearer <access_token>`
+- 行为：校验 access token 并返回 token 中的用户信息
 
 ### 注册
 
@@ -148,7 +192,7 @@ docker compose up --build
 
 - 当前代码里密码是直接明文比对的，生产环境应改为哈希存储与校验
 - 注册接口依赖邮件服务，SMTP 配置错误会导致注册失败
-- `login` 路由目前定义为 `GET`，但处理器读取的是表单参数；如果你计划对外提供标准 API，建议调整为 `POST`
+- JWT 私钥和公钥建议通过文件挂载或 Secret 注入，不要提交到仓库
 - Dockerfile 会在容器内复制 `.env`，生产环境更适合改为环境变量注入或 Secret 管理
 
 ## 开发建议
