@@ -120,10 +120,10 @@ docker compose up --build
 
 ### 登录
 
-- 方法：`GET` 或 `POST`
+- 方法：`POST`
 - 路径：`/api/v1/auth/login`
 - 参数：`email`、`password`
-- 参数来源：表单参数或表单编码请求体
+- 参数来源：JSON payload，请求头建议设置 `Content-Type: application/json`
 
 响应示例：
 
@@ -193,7 +193,7 @@ docker compose up --build
 - 当前代码里密码是直接明文比对的，生产环境应改为哈希存储与校验
 - 注册接口依赖邮件服务，SMTP 配置错误会导致注册失败
 - JWT 私钥和公钥建议通过文件挂载或 Secret 注入，不要提交到仓库
-- Dockerfile 会在容器内复制 `.env`，生产环境更适合改为环境变量注入或 Secret 管理
+- 默认 Docker 镜像不会打包 `.env` 文件，请通过环境变量（或在 `docker-compose.yml` 中挂载 `.env`）向容器注入配置，避免在镜像中硬编码敏感信息
 
 ## 开发建议
 

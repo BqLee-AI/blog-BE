@@ -16,8 +16,6 @@ func SetupRouter() *gin.Engine {
 	{
 		// 用户认证相关路由
 		auth := v1.Group("/auth")
-		// 登录接口支持 GET 和 POST 两种方式，方便前端调试和兼容不同请求习惯
-		auth.GET("/login", handler.LoginHandler)
 		auth.POST("/login", handler.LoginHandler)
 		// 刷新 token 和获取当前用户信息需要认证
 		auth.POST("/refresh", handler.RefreshTokenHandler)

@@ -27,29 +27,25 @@ func newResponse(message string, data interface{}, code string) Response {
 	}
 }
 
-// readLoginCredential 从 POST 表单或 GET 查询参数中读取登录凭证（email 或 password）；优先使用 POST 表单。
-func readLoginCredential(c *gin.Context, key string) string {
-	if value := strings.TrimSpace(c.PostForm(key)); value != "" {
-		return value
-	}
-	return strings.TrimSpace(c.Query(key))
+type loginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
 }
 
 func LoginHandler(c *gin.Context) {
-	email := readLoginCredential(c, "email")
-	password := readLoginCredential(c, "password")
-	if email == "" || password == "" {
+	var req loginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, newResponse(
-			"Email and password are required",
+			"Invalid login payload",
 			nil,
 			"INVALID_REQUEST",
 		))
 		return
 	}
 
-	user, err := models.FindUserByEmail(email)
+	user, err := models.FindUserByEmail(req.Email)
 
-	if err != nil || user.Password != password {
+	if err != nil || user.Password != req.Password {
 		c.JSON(http.StatusUnauthorized, newResponse(
 			"Invalid email or password",
 			nil,
