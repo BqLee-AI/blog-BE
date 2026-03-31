@@ -42,6 +42,10 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       DB_SSLMODE: disable
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
       GIN_MODE: ${GIN_MODE:-release}
       GIN_TRUSTED_PROXIES: ${GIN_TRUSTED_PROXIES:-127.0.0.1,::1}
       JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH:-/app/secrets/jwt_private.pem}
