@@ -314,12 +314,21 @@ func RegisterHandler(c *gin.Context) {
 
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, newResponse(
-			c,
-			"Password hashing failed",
-			nil,
-			"PASSWORD_HASH_FAILED",
-		))
+		if errors.Is(err, utils.ErrPasswordTooLong) {
+			c.JSON(http.StatusBadRequest, newResponse(
+				c,
+				"Password is too long",
+				nil,
+				"PASSWORD_TOO_LONG",
+			))
+		} else {
+			c.JSON(http.StatusInternalServerError, newResponse(
+				c,
+				"Password hashing failed",
+				nil,
+				"PASSWORD_HASH_FAILED",
+			))
+		}
 		return
 	}
 	user := &models.User{
