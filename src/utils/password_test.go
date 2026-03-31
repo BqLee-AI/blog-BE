@@ -32,4 +32,13 @@ func TestHashPasswordRejectsLongPasswords(t *testing.T) {
 	if err == nil {
 		t.Fatal("HashPassword should reject passwords longer than 72 bytes")
 	}
+
+	hash, err := HashPassword(longPassword)
+	if err == nil {
+		t.Fatal("HashPassword should reject passwords longer than 72 bytes")
+	}
+
+	if hash != "" {
+		t.Fatal("HashPassword should return an empty string when hashing fails")
+	}
 }

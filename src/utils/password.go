@@ -16,7 +16,11 @@ func HashPassword(password string) (string, error) {
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword(passwordBytes, bcrypt.DefaultCost)
-	return string(hashedPassword), err
+	if err != nil {
+		return "", err
+	}
+
+	return string(hashedPassword), nil
 }
 
 // CheckPassword 校验明文密码与哈希是否匹配。
