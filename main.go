@@ -29,7 +29,7 @@ func main() {
 	defer dao.MyClose()
 
 	// 模型绑定
-	dao.DB.AutoMigrate(&models.User{})
+	dao.DB.AutoMigrate(&models.User{}, &models.Article{})
 
 	router := routers.SetupRouter()
 
