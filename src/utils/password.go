@@ -2,17 +2,20 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 const maxBcryptPasswordBytes = 72
 
+var ErrPasswordTooLong = errors.New("password exceeds maximum length of 72 bytes for bcrypt")
+
 // HashPassword 生成密码哈希值。
 func HashPassword(password string) (string, error) {
 	passwordBytes := []byte(password)
 	if len(passwordBytes) > maxBcryptPasswordBytes {
-		return "", errors.New("password exceeds maximum length of 72 bytes for bcrypt")
+		return "", fmt.Errorf("%w", ErrPasswordTooLong)
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword(passwordBytes, bcrypt.DefaultCost)

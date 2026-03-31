@@ -1,6 +1,9 @@
 package utils
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestHashPasswordAndCheckPassword(t *testing.T) {
 	hash, err := HashPassword("secret123")
@@ -28,14 +31,13 @@ func TestHashPasswordRejectsLongPasswords(t *testing.T) {
 		t.Fatal("test password must exceed 72 bytes")
 	}
 
-	_, err := HashPassword(longPassword)
+	hash, err := HashPassword(longPassword)
 	if err == nil {
 		t.Fatal("HashPassword should reject passwords longer than 72 bytes")
 	}
 
-	hash, err := HashPassword(longPassword)
-	if err == nil {
-		t.Fatal("HashPassword should reject passwords longer than 72 bytes")
+	if !errors.Is(err, ErrPasswordTooLong) {
+		t.Fatalf("HashPassword should return ErrPasswordTooLong, got %v", err)
 	}
 
 	if hash != "" {
