@@ -20,3 +20,25 @@ func TestHashPasswordAndCheckPassword(t *testing.T) {
 		t.Fatal("CheckPassword should reject an incorrect password")
 	}
 }
+
+func TestHashPasswordRejectsLongPasswords(t *testing.T) {
+	longPassword := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+	if len([]byte(longPassword)) <= maxBcryptPasswordBytes {
+		t.Fatal("test password must exceed 72 bytes")
+	}
+
+	_, err := HashPassword(longPassword)
+	if err == nil {
+		t.Fatal("HashPassword should reject passwords longer than 72 bytes")
+	}
+
+	hash, err := HashPassword(longPassword)
+	if err == nil {
+		t.Fatal("HashPassword should reject passwords longer than 72 bytes")
+	}
+
+	if hash != "" {
+		t.Fatal("HashPassword should return an empty string when hashing fails")
+	}
+}
