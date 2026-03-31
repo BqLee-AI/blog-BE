@@ -20,6 +20,16 @@ func SetupRouter() *gin.Engine {
 
 	v1 := router.Group("/api/v1")
 	{
+		articles := v1.Group("/articles")
+		articles.GET("", handler.GetArticles)
+		articles.GET("/:id", handler.GetArticle)
+
+		authArticles := v1.Group("/articles")
+		authArticles.Use(middleware.JWTAuth())
+		authArticles.POST("", handler.CreateArticle)
+		authArticles.PUT("/:id", handler.UpdateArticle)
+		authArticles.DELETE("/:id", handler.DeleteArticle)
+
 		// 用户认证相关路由
 		auth := v1.Group("/auth")
 		auth.POST("/login", handler.LoginHandler)
