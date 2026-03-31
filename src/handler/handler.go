@@ -71,8 +71,7 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	user, err := models.FindUserByEmail(req.Email)
-
-	if err != nil || user.Password != req.Password {
+	if err != nil || !utils.CheckPassword(req.Password, user.Password) {
 		c.JSON(http.StatusUnauthorized, newResponse(
 			c,
 			"Invalid email or password",
@@ -312,10 +311,21 @@ func RegisterHandler(c *gin.Context) {
 		}
 		return
 	}
+
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, newResponse(
+			c,
+			"Password hashing failed",
+			nil,
+			"PASSWORD_HASH_FAILED",
+		))
+		return
+	}
 	user := &models.User{
 		Username: req.Username,
 		Email:    req.Email,
-		Password: req.Password,
+		Password: hashedPassword,
 		RoleID:   0,
 	}
 
