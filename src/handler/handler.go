@@ -4,10 +4,13 @@ import (
 	"blog-BE/src/models"
 	"blog-BE/src/service"
 	"blog-BE/src/utils"
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // 统一响应结构
@@ -42,6 +45,17 @@ func newResponse(c *gin.Context, message string, data interface{}, code string) 
 type loginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
+}
+
+type verificationCodeRequest struct {
+	Email string `json:"email" form:"email" binding:"required,email"`
+}
+
+type registerRequest struct {
+	Username string `json:"username" form:"username" binding:"required"`
+	Email    string `json:"email" form:"email" binding:"required,email"`
+	Password string `json:"password" form:"password" binding:"required"`
+	Code     string `json:"code" form:"code" binding:"required"`
 }
 
 func LoginHandler(c *gin.Context) {
@@ -166,6 +180,65 @@ func MeHandler(c *gin.Context) {
 	))
 }
 
+func SendVerificationCodeHandler(c *gin.Context) {
+	var req verificationCodeRequest
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, newResponse(
+			c,
+			"Invalid verification code request payload",
+			nil,
+			"INVALID_REQUEST",
+		))
+		return
+	}
+
+	if _, err := models.FindUserByEmail(req.Email); err == nil {
+		c.JSON(http.StatusConflict, newResponse(
+			c,
+			"Email is already registered",
+			nil,
+			"EMAIL_ALREADY_REGISTERED",
+		))
+		return
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		c.JSON(http.StatusInternalServerError, newResponse(
+			c,
+			fmt.Sprintf("Failed to check email status: %v", err),
+			nil,
+			"DATABASE_ERROR",
+		))
+		return
+	}
+
+	if err := service.SendVerificationCode(req.Email); err != nil {
+		var cooldownErr *service.VerificationCooldownError
+		if errors.As(err, &cooldownErr) {
+			c.JSON(http.StatusTooManyRequests, newResponse(
+				c,
+				cooldownErr.Error(),
+				gin.H{"retry_after_seconds": int(cooldownErr.Remaining.Seconds())},
+				"VERIFICATION_COOLDOWN",
+			))
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, newResponse(
+			c,
+			fmt.Sprintf("Failed to send verification code: %v", err),
+			nil,
+			"VERIFICATION_SEND_FAILED",
+		))
+		return
+	}
+
+	c.JSON(http.StatusOK, newResponse(
+		c,
+		"Verification code sent successfully",
+		gin.H{"retry_after_seconds": 60},
+		"",
+	))
+}
+
 func utilsClaimsFromContext(c *gin.Context) (*utils.Claims, bool) {
 	value, exists := c.Get("jwtClaims")
 	if !exists {
@@ -177,26 +250,73 @@ func utilsClaimsFromContext(c *gin.Context) (*utils.Claims, bool) {
 }
 
 func RegisterHandler(c *gin.Context) {
-	username := c.PostForm("username")
-	email := c.PostForm("email")
-	password := c.PostForm("password")
-	code := c.PostForm("code")
-	user := &models.User{
-		Username: username,
-		Email:    email,
-		Password: password,
-		RoleID:   0,
-	}
-	// 验证码
-	realcode, err := service.SendMail("", email)
-	if err != nil || realcode == "" || realcode != code {
-		c.JSON(http.StatusInternalServerError, newResponse(
+	var req registerRequest
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, newResponse(
 			c,
-			"Failed to send verification code",
+			"Invalid registration payload",
 			nil,
-			"VERIFICATION_FAILED",
+			"INVALID_REQUEST",
 		))
 		return
+	}
+
+	if _, err := models.FindUserByEmail(req.Email); err == nil {
+		c.JSON(http.StatusConflict, newResponse(
+			c,
+			"Email is already registered",
+			nil,
+			"EMAIL_ALREADY_REGISTERED",
+		))
+		return
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		c.JSON(http.StatusInternalServerError, newResponse(
+			c,
+			fmt.Sprintf("Failed to check email status: %v", err),
+			nil,
+			"DATABASE_ERROR",
+		))
+		return
+	}
+
+	if err := service.VerifyVerificationCode(req.Email, req.Code); err != nil {
+		switch {
+		case errors.Is(err, service.ErrVerificationCodeNotFound):
+			c.JSON(http.StatusBadRequest, newResponse(
+				c,
+				"Verification code not found or expired",
+				nil,
+				"VERIFICATION_CODE_MISSING",
+			))
+		case errors.Is(err, service.ErrVerificationCodeExpired):
+			c.JSON(http.StatusBadRequest, newResponse(
+				c,
+				"Verification code has expired, please request a new one",
+				nil,
+				"VERIFICATION_CODE_EXPIRED",
+			))
+		case errors.Is(err, service.ErrVerificationCodeInvalid):
+			c.JSON(http.StatusBadRequest, newResponse(
+				c,
+				"Verification code is incorrect",
+				nil,
+				"VERIFICATION_CODE_INVALID",
+			))
+		default:
+			c.JSON(http.StatusInternalServerError, newResponse(
+				c,
+				fmt.Sprintf("Failed to verify code: %v", err),
+				nil,
+				"VERIFICATION_CHECK_FAILED",
+			))
+		}
+		return
+	}
+	user := &models.User{
+		Username: req.Username,
+		Email:    req.Email,
+		Password: req.Password,
+		RoleID:   0,
 	}
 
 	if err := models.CreateUser(user); err != nil {
