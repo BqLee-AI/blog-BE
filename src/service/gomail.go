@@ -18,11 +18,19 @@ func SendMail(mailFrom string, mailTo string, code string) error {
 		return errors.New("mailTo:接收消息的邮箱不能为空")
 	}
 
+	fromAddress := config.AppConfig.MailUsername
+	if mailFrom != "" {
+		fromAddress = mailFrom
+	}
+	if fromAddress == "" {
+		return errors.New("mailFrom:发件人邮箱不能为空")
+	}
+
 	m := gomail.NewMessage()
-	m.SetHeader("From", m.FormatAddress(config.AppConfig.MailUsername, mailFrom)) // 这种方式可以添加别名
-	m.SetHeader("To", mailTo)                                                     // 发送给用户
-	m.SetHeader("Subject", "验证码")                                                 // 设置邮件主题
-	m.SetBody("text/html", retHTMLMessage(mailTo, code))                          // 设置邮件正文
+	m.SetHeader("From", fromAddress)
+	m.SetHeader("To", mailTo)                            // 发送给用户
+	m.SetHeader("Subject", "验证码")                        // 设置邮件主题
+	m.SetBody("text/html", retHTMLMessage(mailTo, code)) // 设置邮件正文
 
 	// 连接
 	dialer := gomail.NewDialer(config.AppConfig.MailHost, config.AppConfig.MailPort, config.AppConfig.MailUsername, config.AppConfig.MailPassword)
