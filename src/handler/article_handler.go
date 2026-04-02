@@ -6,10 +6,63 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+type articleAuthorResponse struct {
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+}
+
+type articleResponse struct {
+	ID         uint                   `json:"id"`
+	Title      string                 `json:"title"`
+	Content    string                 `json:"content"`
+	Summary    string                 `json:"summary"`
+	CoverImage string                 `json:"cover_image"`
+	AuthorID   uint                   `json:"author_id"`
+	Author     *articleAuthorResponse `json:"author,omitempty"`
+	Status     string                 `json:"status"`
+	ViewCount  int                    `json:"view_count"`
+	CreatedAt  time.Time              `json:"created_at"`
+	UpdatedAt  time.Time              `json:"updated_at"`
+}
+
+func newArticleResponse(article *models.Article) articleResponse {
+	response := articleResponse{
+		ID:         article.ID,
+		Title:      article.Title,
+		Content:    article.Content,
+		Summary:    article.Summary,
+		CoverImage: article.CoverImage,
+		AuthorID:   article.AuthorID,
+		Status:     article.Status,
+		ViewCount:  article.ViewCount,
+		CreatedAt:  article.CreatedAt,
+		UpdatedAt:  article.UpdatedAt,
+	}
+
+	if article.Author != nil {
+		response.Author = &articleAuthorResponse{
+			ID:       article.Author.ID,
+			Username: article.Author.Username,
+		}
+	}
+
+	return response
+}
+
+func newArticleListResponse(articles []models.Article) []articleResponse {
+	responses := make([]articleResponse, 0, len(articles))
+	for i := range articles {
+		responses = append(responses, newArticleResponse(&articles[i]))
+	}
+
+	return responses
+}
 
 func GetArticles(c *gin.Context) {
 	var req request.ArticleListReq
@@ -21,6 +74,10 @@ func GetArticles(c *gin.Context) {
 			"INVALID_REQUEST",
 		))
 		return
+	}
+
+	if req.Status == "" {
+		req.Status = "published"
 	}
 
 	if req.Page <= 0 {
@@ -45,7 +102,7 @@ func GetArticles(c *gin.Context) {
 		c,
 		"success",
 		gin.H{
-			"items":     articles,
+			"items":     newArticleListResponse(articles),
 			"total":     total,
 			"page":      req.Page,
 			"page_size": req.PageSize,
@@ -94,7 +151,7 @@ func GetArticle(c *gin.Context) {
 	c.JSON(http.StatusOK, newResponse(
 		c,
 		"success",
-		article,
+		newArticleResponse(article),
 		"",
 	))
 }
@@ -151,7 +208,7 @@ func CreateArticle(c *gin.Context) {
 	c.JSON(http.StatusCreated, newResponse(
 		c,
 		"Article created successfully",
-		article,
+		newArticleResponse(&article),
 		"",
 	))
 }
