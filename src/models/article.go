@@ -32,6 +32,15 @@ func CreateArticle(article *Article) error {
 
 func GetArticleByID(id uint) (*Article, error) {
 	var article Article
+	if err := dao.DB.First(&article, id).Error; err != nil {
+		return nil, err
+	}
+
+	return &article, nil
+}
+
+func GetArticleWithAuthorByID(id uint) (*Article, error) {
+	var article Article
 	if err := dao.DB.Preload("Author", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id", "username")
 	}).First(&article, id).Error; err != nil {
