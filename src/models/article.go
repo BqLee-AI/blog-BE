@@ -14,7 +14,7 @@ type Article struct {
 	Summary    string         `gorm:"size:500" json:"summary"`
 	CoverImage string         `gorm:"size:255" json:"cover_image"`
 	AuthorID   uint           `gorm:"not null;index" json:"author_id"`
-	Author     User           `gorm:"foreignKey:AuthorID" json:"author,omitempty"`
+	Author     *User          `gorm:"foreignKey:AuthorID" json:"author,omitempty"`
 	Status     string         `gorm:"size:20;default:draft;index" json:"status"`
 	ViewCount  int            `gorm:"default:0" json:"view_count"`
 	CreatedAt  time.Time      `json:"created_at"`
