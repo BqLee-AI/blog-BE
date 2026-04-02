@@ -149,7 +149,7 @@ func GetArticle(c *gin.Context) {
 		return
 	}
 
-	article, err := models.GetArticleByID(uint(id))
+	article, err := models.GetArticleWithAuthorByID(uint(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, utils.NewResponse(
@@ -183,6 +183,8 @@ func GetArticle(c *gin.Context) {
 
 	if err := models.IncrementViewCount(uint(id)); err != nil {
 		log.Printf("failed to increment article view count: article_id=%d err=%v", id, err)
+	} else {
+		article.ViewCount++
 	}
 
 	c.JSON(http.StatusOK, utils.NewResponse(
@@ -264,7 +266,7 @@ func CreateArticle(c *gin.Context) {
 		return
 	}
 
-	if refreshed, err := models.GetArticleByID(article.ID); err == nil {
+	if refreshed, err := models.GetArticleWithAuthorByID(article.ID); err == nil {
 		article = *refreshed
 	}
 
