@@ -39,13 +39,16 @@ func GetArticleByID(id uint) (*Article, error) {
 	return &article, nil
 }
 
-func GetArticles(page, pageSize int, status string) ([]Article, int64, error) {
+func GetArticles(page, pageSize int, status string, authorID uint, filterByAuthor bool) ([]Article, int64, error) {
 	var articles []Article
 	var total int64
 
 	countQuery := dao.DB.Model(&Article{})
 	if status != "" {
 		countQuery = countQuery.Where("status = ?", status)
+	}
+	if filterByAuthor {
+		countQuery = countQuery.Where("author_id = ?", authorID)
 	}
 	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -54,6 +57,9 @@ func GetArticles(page, pageSize int, status string) ([]Article, int64, error) {
 	listQuery := dao.DB.Model(&Article{})
 	if status != "" {
 		listQuery = listQuery.Where("status = ?", status)
+	}
+	if filterByAuthor {
+		listQuery = listQuery.Where("author_id = ?", authorID)
 	}
 
 	offset := (page - 1) * pageSize

@@ -78,7 +78,24 @@ func GetArticles(c *gin.Context) {
 		return
 	}
 
+	claims, hasClaims := getOptionalArticleClaims(c)
+	filterByAuthor := false
+	authorID := uint(0)
+
+	if req.Status == "" {
+		req.Status = "published"
+	}
+
 	if req.Status != "published" {
+		if !hasClaims || claims == nil {
+			req.Status = "published"
+		} else if claims.RoleID == 0 {
+			filterByAuthor = true
+			authorID = claims.UserID
+		}
+	}
+
+	if req.Status == "published" {
 		req.Status = "published"
 	}
 
@@ -89,7 +106,7 @@ func GetArticles(c *gin.Context) {
 		req.PageSize = 10
 	}
 
-	articles, total, err := models.GetArticles(req.Page, req.PageSize, req.Status)
+	articles, total, err := models.GetArticles(req.Page, req.PageSize, req.Status, authorID, filterByAuthor)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
