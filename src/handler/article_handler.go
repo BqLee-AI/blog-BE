@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"blog-BE/src/middleware"
 	"blog-BE/src/models"
 	"blog-BE/src/models/request"
 	"blog-BE/src/utils"
@@ -219,7 +220,7 @@ func canReadUnpublishedArticle(article *models.Article, claims *utils.Claims, ha
 }
 
 func CreateArticle(c *gin.Context) {
-	claims, ok := utilsClaimsFromContext(c)
+	claims, ok := middleware.ClaimsFromContext(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, utils.NewResponse(
 			c,
@@ -276,7 +277,7 @@ func CreateArticle(c *gin.Context) {
 }
 
 func UpdateArticle(c *gin.Context) {
-	claims, ok := utilsClaimsFromContext(c)
+	claims, ok := middleware.ClaimsFromContext(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, utils.NewResponse(
 			c,
@@ -386,13 +387,13 @@ func UpdateArticle(c *gin.Context) {
 }
 
 func DeleteArticle(c *gin.Context) {
-	claims, ok := utilsClaimsFromContext(c)
+	claims, ok := middleware.ClaimsFromContext(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, utils.NewResponse(
 			c,
 			"Unauthorized",
 			nil,
-			"TOKEN_MISSING",
+			"INVALID_REQUEST",
 		))
 		return
 	}
