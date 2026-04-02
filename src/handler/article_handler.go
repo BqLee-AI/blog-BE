@@ -335,20 +335,20 @@ func UpdateArticle(c *gin.Context) {
 	}
 
 	updates := make(map[string]interface{})
-	if req.Title != "" {
-		updates["title"] = req.Title
+	if req.Title != nil {
+		updates["title"] = *req.Title
 	}
-	if req.Content != "" {
-		updates["content"] = req.Content
+	if req.Content != nil {
+		updates["content"] = *req.Content
 	}
-	if req.Summary != "" {
-		updates["summary"] = req.Summary
+	if req.Summary != nil {
+		updates["summary"] = *req.Summary
 	}
-	if req.CoverImage != "" {
-		updates["cover_image"] = req.CoverImage
+	if req.CoverImage != nil {
+		updates["cover_image"] = *req.CoverImage
 	}
-	if req.Status != "" {
-		updates["status"] = req.Status
+	if req.Status != nil {
+		updates["status"] = *req.Status
 	}
 
 	if len(updates) == 0 {

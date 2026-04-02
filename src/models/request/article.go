@@ -9,11 +9,11 @@ type CreateArticleReq struct {
 }
 
 type UpdateArticleReq struct {
-	Title      string `json:"title" binding:"omitempty,min=1,max=255"`
-	Content    string `json:"content"`
-	Summary    string `json:"summary" binding:"omitempty,max=500"`
-	CoverImage string `json:"cover_image"`
-	Status     string `json:"status" binding:"omitempty,oneof=draft published archived"`
+	Title      *string `json:"title" binding:"omitempty,min=1,max=255"`
+	Content    *string `json:"content"`
+	Summary    *string `json:"summary" binding:"omitempty,max=500"`
+	CoverImage *string `json:"cover_image"`
+	Status     *string `json:"status" binding:"omitempty,oneof=draft published archived"`
 }
 
 type ArticleListReq struct {
