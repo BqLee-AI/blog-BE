@@ -3,24 +3,20 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"strings"
+
+	"blog-BE/src/utils"
 
 	"github.com/gin-gonic/gin"
 )
 
-const requestIDContextKey = "request_id"
-
 func RequestIDMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		requestID := strings.TrimSpace(c.GetHeader("X-Request-ID"))
-		if requestID == "" {
-			requestID = strings.TrimSpace(c.GetHeader("X-Trace-ID"))
-		}
+		requestID := utils.RequestIDFromContext(c)
 		if requestID == "" {
 			requestID = generateRequestID()
 		}
 
-		c.Set(requestIDContextKey, requestID)
+		c.Set(utils.RequestIDContextKey, requestID)
 		c.Header("X-Request-ID", requestID)
 		c.Next()
 	}
