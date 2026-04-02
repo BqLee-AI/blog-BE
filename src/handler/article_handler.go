@@ -19,10 +19,9 @@ type articleAuthorResponse struct {
 	Username string `json:"username"`
 }
 
-type articleResponse struct {
+type articleListResponse struct {
 	ID         uint                   `json:"id"`
 	Title      string                 `json:"title"`
-	Content    string                 `json:"content"`
 	Summary    string                 `json:"summary"`
 	CoverImage string                 `json:"cover_image"`
 	AuthorID   uint                   `json:"author_id"`
@@ -33,11 +32,15 @@ type articleResponse struct {
 	UpdatedAt  time.Time              `json:"updated_at"`
 }
 
-func newArticleResponse(article *models.Article) articleResponse {
-	response := articleResponse{
+type articleDetailResponse struct {
+	articleListResponse
+	Content string `json:"content"`
+}
+
+func newArticleListResponseItem(article *models.Article) articleListResponse {
+	response := articleListResponse{
 		ID:         article.ID,
 		Title:      article.Title,
-		Content:    article.Content,
 		Summary:    article.Summary,
 		CoverImage: article.CoverImage,
 		AuthorID:   article.AuthorID,
@@ -57,10 +60,17 @@ func newArticleResponse(article *models.Article) articleResponse {
 	return response
 }
 
-func newArticleListResponse(articles []models.Article) []articleResponse {
-	responses := make([]articleResponse, 0, len(articles))
+func newArticleDetailResponse(article *models.Article) articleDetailResponse {
+	return articleDetailResponse{
+		articleListResponse: newArticleListResponseItem(article),
+		Content:             article.Content,
+	}
+}
+
+func newArticleListResponse(articles []models.Article) []articleListResponse {
+	responses := make([]articleListResponse, 0, len(articles))
 	for i := range articles {
-		responses = append(responses, newArticleResponse(&articles[i]))
+		responses = append(responses, newArticleListResponseItem(&articles[i]))
 	}
 
 	return responses
@@ -177,7 +187,7 @@ func GetArticle(c *gin.Context) {
 	c.JSON(http.StatusOK, utils.NewResponse(
 		c,
 		"success",
-		newArticleResponse(article),
+		newArticleDetailResponse(article),
 		"",
 	))
 }
@@ -260,7 +270,7 @@ func CreateArticle(c *gin.Context) {
 	c.JSON(http.StatusCreated, utils.NewResponse(
 		c,
 		"Article created successfully",
-		newArticleResponse(&article),
+		newArticleDetailResponse(&article),
 		"",
 	))
 }
