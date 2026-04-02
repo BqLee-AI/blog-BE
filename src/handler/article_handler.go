@@ -393,7 +393,7 @@ func DeleteArticle(c *gin.Context) {
 			c,
 			"Unauthorized",
 			nil,
-			"INVALID_REQUEST",
+			"TOKEN_MISSING",
 		))
 		return
 	}
