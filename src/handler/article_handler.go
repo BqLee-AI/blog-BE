@@ -69,7 +69,7 @@ func newArticleListResponse(articles []models.Article) []articleResponse {
 func GetArticles(c *gin.Context) {
 	var req request.ArticleListReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, newResponse(
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
 			c,
 			"Invalid article list payload",
 			nil,
@@ -78,7 +78,7 @@ func GetArticles(c *gin.Context) {
 		return
 	}
 
-	if req.Status == "" {
+	if req.Status != "published" {
 		req.Status = "published"
 	}
 
@@ -91,7 +91,7 @@ func GetArticles(c *gin.Context) {
 
 	articles, total, err := models.GetArticles(req.Page, req.PageSize, req.Status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, newResponse(
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to fetch article list",
 			nil,
@@ -100,7 +100,7 @@ func GetArticles(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, newResponse(
+	c.JSON(http.StatusOK, utils.NewResponse(
 		c,
 		"success",
 		gin.H{
@@ -116,7 +116,7 @@ func GetArticles(c *gin.Context) {
 func GetArticle(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, newResponse(
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
 			c,
 			"Invalid article ID",
 			nil,
@@ -128,7 +128,7 @@ func GetArticle(c *gin.Context) {
 	article, err := models.GetArticleByID(uint(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, newResponse(
+			c.JSON(http.StatusNotFound, utils.NewResponse(
 				c,
 				"Article not found",
 				nil,
@@ -137,7 +137,7 @@ func GetArticle(c *gin.Context) {
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, newResponse(
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to fetch article",
 			nil,
@@ -148,7 +148,7 @@ func GetArticle(c *gin.Context) {
 
 	claims, hasClaims := getOptionalArticleClaims(c)
 	if article.Status != "published" && !canReadUnpublishedArticle(article, claims, hasClaims) {
-		c.JSON(http.StatusNotFound, newResponse(
+		c.JSON(http.StatusNotFound, utils.NewResponse(
 			c,
 			"Article not found",
 			nil,
@@ -161,7 +161,7 @@ func GetArticle(c *gin.Context) {
 		log.Printf("failed to increment article view count: article_id=%d err=%v", id, err)
 	}
 
-	c.JSON(http.StatusOK, newResponse(
+	c.JSON(http.StatusOK, utils.NewResponse(
 		c,
 		"success",
 		newArticleResponse(article),
@@ -198,7 +198,7 @@ func canReadUnpublishedArticle(article *models.Article, claims *utils.Claims, ha
 func CreateArticle(c *gin.Context) {
 	claims, ok := utilsClaimsFromContext(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, newResponse(
+		c.JSON(http.StatusUnauthorized, utils.NewResponse(
 			c,
 			"Unauthorized",
 			nil,
@@ -209,7 +209,7 @@ func CreateArticle(c *gin.Context) {
 
 	var req request.CreateArticleReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, newResponse(
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
 			c,
 			"Invalid article payload",
 			nil,
@@ -231,7 +231,7 @@ func CreateArticle(c *gin.Context) {
 	}
 
 	if err := models.CreateArticle(&article); err != nil {
-		c.JSON(http.StatusInternalServerError, newResponse(
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to create article",
 			nil,
@@ -244,7 +244,7 @@ func CreateArticle(c *gin.Context) {
 		article = *refreshed
 	}
 
-	c.JSON(http.StatusCreated, newResponse(
+	c.JSON(http.StatusCreated, utils.NewResponse(
 		c,
 		"Article created successfully",
 		newArticleResponse(&article),
@@ -255,7 +255,7 @@ func CreateArticle(c *gin.Context) {
 func UpdateArticle(c *gin.Context) {
 	claims, ok := utilsClaimsFromContext(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, newResponse(
+		c.JSON(http.StatusUnauthorized, utils.NewResponse(
 			c,
 			"Unauthorized",
 			nil,
@@ -266,7 +266,7 @@ func UpdateArticle(c *gin.Context) {
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, newResponse(
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
 			c,
 			"Invalid article ID",
 			nil,
@@ -278,7 +278,7 @@ func UpdateArticle(c *gin.Context) {
 	article, err := models.GetArticleByID(uint(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, newResponse(
+			c.JSON(http.StatusNotFound, utils.NewResponse(
 				c,
 				"Article not found",
 				nil,
@@ -287,7 +287,7 @@ func UpdateArticle(c *gin.Context) {
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, newResponse(
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to fetch article",
 			nil,
@@ -297,7 +297,7 @@ func UpdateArticle(c *gin.Context) {
 	}
 
 	if article.AuthorID != claims.UserID && claims.RoleID == 0 {
-		c.JSON(http.StatusForbidden, newResponse(
+		c.JSON(http.StatusForbidden, utils.NewResponse(
 			c,
 			"You do not have permission to update this article",
 			nil,
@@ -308,7 +308,7 @@ func UpdateArticle(c *gin.Context) {
 
 	var req request.UpdateArticleReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, newResponse(
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
 			c,
 			"Invalid article payload",
 			nil,
@@ -335,7 +335,7 @@ func UpdateArticle(c *gin.Context) {
 	}
 
 	if len(updates) == 0 {
-		c.JSON(http.StatusBadRequest, newResponse(
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
 			c,
 			"No fields to update",
 			nil,
@@ -345,7 +345,7 @@ func UpdateArticle(c *gin.Context) {
 	}
 
 	if err := models.UpdateArticle(uint(id), updates); err != nil {
-		c.JSON(http.StatusInternalServerError, newResponse(
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to update article",
 			nil,
@@ -354,7 +354,7 @@ func UpdateArticle(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, newResponse(
+	c.JSON(http.StatusOK, utils.NewResponse(
 		c,
 		"Article updated successfully",
 		nil,
@@ -365,7 +365,7 @@ func UpdateArticle(c *gin.Context) {
 func DeleteArticle(c *gin.Context) {
 	claims, ok := utilsClaimsFromContext(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, newResponse(
+		c.JSON(http.StatusUnauthorized, utils.NewResponse(
 			c,
 			"Unauthorized",
 			nil,
@@ -376,7 +376,7 @@ func DeleteArticle(c *gin.Context) {
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, newResponse(
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
 			c,
 			"Invalid article ID",
 			nil,
@@ -388,7 +388,7 @@ func DeleteArticle(c *gin.Context) {
 	article, err := models.GetArticleByID(uint(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, newResponse(
+			c.JSON(http.StatusNotFound, utils.NewResponse(
 				c,
 				"Article not found",
 				nil,
@@ -397,7 +397,7 @@ func DeleteArticle(c *gin.Context) {
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, newResponse(
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to fetch article",
 			nil,
@@ -407,7 +407,7 @@ func DeleteArticle(c *gin.Context) {
 	}
 
 	if article.AuthorID != claims.UserID && claims.RoleID == 0 {
-		c.JSON(http.StatusForbidden, newResponse(
+		c.JSON(http.StatusForbidden, utils.NewResponse(
 			c,
 			"You do not have permission to delete this article",
 			nil,
@@ -417,7 +417,7 @@ func DeleteArticle(c *gin.Context) {
 	}
 
 	if err := models.DeleteArticle(uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, newResponse(
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to delete article",
 			nil,
@@ -426,7 +426,7 @@ func DeleteArticle(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, newResponse(
+	c.JSON(http.StatusOK, utils.NewResponse(
 		c,
 		"Article deleted successfully",
 		nil,
