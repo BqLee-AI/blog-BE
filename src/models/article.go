@@ -32,7 +32,9 @@ func CreateArticle(article *Article) error {
 
 func GetArticleByID(id uint) (*Article, error) {
 	var article Article
-	if err := dao.DB.Preload("Author").First(&article, id).Error; err != nil {
+	if err := dao.DB.Preload("Author", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id", "username")
+	}).First(&article, id).Error; err != nil {
 		return nil, err
 	}
 
@@ -64,7 +66,9 @@ func GetArticles(page, pageSize int, status string, authorID uint, filterByAutho
 
 	offset := (page - 1) * pageSize
 	if err := listQuery.
-		Preload("Author").
+		Preload("Author", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "username")
+		}).
 		Order("created_at DESC").
 		Offset(offset).
 		Limit(pageSize).
