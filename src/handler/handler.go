@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"blog-BE/src/middleware"
 	"blog-BE/src/models"
 	"blog-BE/src/service"
 	"blog-BE/src/utils"
@@ -126,7 +127,7 @@ func RefreshTokenHandler(c *gin.Context) {
 }
 
 func MeHandler(c *gin.Context) {
-	claims, ok := utilsClaimsFromContext(c)
+	claims, ok := middleware.ClaimsFromContext(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, utils.NewResponse(
 			c,
@@ -207,16 +208,6 @@ func SendVerificationCodeHandler(c *gin.Context) {
 		gin.H{"retry_after_seconds": 60},
 		"",
 	))
-}
-
-func utilsClaimsFromContext(c *gin.Context) (*utils.Claims, bool) {
-	value, exists := c.Get("jwtClaims")
-	if !exists {
-		return nil, false
-	}
-
-	claims, ok := value.(*utils.Claims)
-	return claims, ok
 }
 
 func RegisterHandler(c *gin.Context) {
