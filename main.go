@@ -29,7 +29,9 @@ func main() {
 	defer dao.MyClose()
 
 	// 模型绑定
-	dao.DB.AutoMigrate(&models.User{}, &models.Article{})
+	if err := dao.DB.AutoMigrate(&models.User{}, &models.Article{}); err != nil {
+		log.Fatal("数据库迁移失败：", err)
+	}
 
 	router := routers.SetupRouter()
 
