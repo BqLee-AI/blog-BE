@@ -3,7 +3,9 @@ package handler
 import (
 	"blog-BE/src/models"
 	"blog-BE/src/models/request"
+	"blog-BE/src/utils"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -144,9 +146,20 @@ func GetArticle(c *gin.Context) {
 		return
 	}
 
-	go func(articleID uint) {
-		_ = models.IncrementViewCount(articleID)
-	}(uint(id))
+	claims, hasClaims := getOptionalArticleClaims(c)
+	if article.Status != "published" && !canReadUnpublishedArticle(article, claims, hasClaims) {
+		c.JSON(http.StatusNotFound, newResponse(
+			c,
+			"Article not found",
+			nil,
+			"NOT_FOUND",
+		))
+		return
+	}
+
+	if err := models.IncrementViewCount(uint(id)); err != nil {
+		log.Printf("failed to increment article view count: article_id=%d err=%v", id, err)
+	}
 
 	c.JSON(http.StatusOK, newResponse(
 		c,
@@ -154,6 +167,32 @@ func GetArticle(c *gin.Context) {
 		newArticleResponse(article),
 		"",
 	))
+}
+
+func getOptionalArticleClaims(c *gin.Context) (*utils.Claims, bool) {
+	token := utils.ExtractBearerToken(c.GetHeader("Authorization"))
+	if token == "" {
+		return nil, false
+	}
+
+	claims, err := utils.ParseAccessToken(token)
+	if err != nil {
+		return nil, false
+	}
+
+	return claims, true
+}
+
+func canReadUnpublishedArticle(article *models.Article, claims *utils.Claims, hasClaims bool) bool {
+	if !hasClaims || claims == nil {
+		return false
+	}
+
+	if article.AuthorID == claims.UserID {
+		return true
+	}
+
+	return claims.RoleID != 0
 }
 
 func CreateArticle(c *gin.Context) {
