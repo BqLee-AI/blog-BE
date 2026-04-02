@@ -95,10 +95,6 @@ func GetArticles(c *gin.Context) {
 		}
 	}
 
-	if req.Status == "published" {
-		req.Status = "published"
-	}
-
 	if req.Page <= 0 {
 		req.Page = 1
 	}
