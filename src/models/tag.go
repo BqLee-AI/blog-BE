@@ -12,8 +12,8 @@ import (
 
 type Tag struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	Name      string         `gorm:"size:30;not null;uniqueIndex" json:"name"`
-	Slug      string         `gorm:"size:30;uniqueIndex" json:"slug"`
+	Name      string         `gorm:"size:30;not null;uniqueIndex:idx_tags_name_active,where:deleted_at IS NULL" json:"name"`
+	Slug      string         `gorm:"size:30;uniqueIndex:idx_tags_slug_active,where:deleted_at IS NULL" json:"slug"`
 	Color     string         `gorm:"size:7;default:#6366f1" json:"color"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
