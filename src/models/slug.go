@@ -20,7 +20,7 @@ func buildUniqueSlug(model any, rawValue string, maxLength int) (string, error) 
 
 	for suffix := 2; ; suffix++ {
 		var count int64
-		if err := dao.DB.Unscoped().Model(model).Where("slug = ?", slug).Count(&count).Error; err != nil {
+		if err := dao.DB.Model(model).Where("slug = ?", slug).Count(&count).Error; err != nil {
 			return "", err
 		}
 		if count == 0 {
