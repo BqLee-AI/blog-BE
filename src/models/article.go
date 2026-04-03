@@ -2,6 +2,7 @@ package models
 
 import (
 	"blog-BE/src/dao"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -111,10 +112,23 @@ func UpdateArticleTags(articleID uint, tagIDs []uint) error {
 		return err
 	}
 
-	tags := make([]Tag, 0, len(tagIDs))
-	if len(tagIDs) > 0 {
-		if err := dao.DB.Where("id IN ?", tagIDs).Find(&tags).Error; err != nil {
+	uniqueTagIDs := make([]uint, 0, len(tagIDs))
+	seen := make(map[uint]struct{}, len(tagIDs))
+	for _, tagID := range tagIDs {
+		if _, ok := seen[tagID]; ok {
+			continue
+		}
+		seen[tagID] = struct{}{}
+		uniqueTagIDs = append(uniqueTagIDs, tagID)
+	}
+
+	tags := make([]Tag, 0, len(uniqueTagIDs))
+	if len(uniqueTagIDs) > 0 {
+		if err := dao.DB.Where("id IN ?", uniqueTagIDs).Find(&tags).Error; err != nil {
 			return err
+		}
+		if len(tags) != len(uniqueTagIDs) {
+			return errors.New("one or more tag IDs are invalid")
 		}
 	}
 
