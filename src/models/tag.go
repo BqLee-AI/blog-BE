@@ -32,6 +32,12 @@ func GetTagByID(id uint) (*Tag, error) {
 }
 
 func CreateTag(tag *Tag) error {
+	slug, err := buildUniqueSlug(&Tag{}, firstNonEmpty(tag.Slug, tag.Name), 30)
+	if err != nil {
+		return err
+	}
+	tag.Slug = slug
+
 	return dao.DB.Create(tag).Error
 }
 
@@ -51,11 +57,8 @@ func GetOrCreateTags(names []string) ([]Tag, error) {
 				return nil, err
 			}
 
-			tag = Tag{
-				Name: trimmedName,
-				Slug: strings.ToLower(trimmedName),
-			}
-			if err := dao.DB.Create(&tag).Error; err != nil {
+			tag = Tag{Name: trimmedName}
+			if err := CreateTag(&tag); err != nil {
 				return nil, err
 			}
 		}
@@ -64,4 +67,14 @@ func GetOrCreateTags(names []string) ([]Tag, error) {
 	}
 
 	return tags, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+
+	return ""
 }
