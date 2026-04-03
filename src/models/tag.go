@@ -3,6 +3,7 @@ package models
 import (
 	"blog-BE/src/dao"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -32,13 +33,30 @@ func GetTagByID(id uint) (*Tag, error) {
 }
 
 func CreateTag(tag *Tag) error {
-	slug, err := buildUniqueSlug(&Tag{}, firstNonEmpty(tag.Slug, tag.Name), 30)
-	if err != nil {
-		return err
-	}
-	tag.Slug = slug
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		slug, err := buildUniqueSlug(&Tag{}, firstNonEmpty(tag.Slug, tag.Name), 30)
+		if err != nil {
+			return err
+		}
+		tag.Slug = slug
 
-	return dao.DB.Create(tag).Error
+		if err := dao.DB.Create(tag).Error; err != nil {
+			lastErr = err
+			if isUniqueConstraintError(err) {
+				continue
+			}
+			return err
+		}
+
+		return nil
+	}
+
+	if lastErr != nil {
+		return lastErr
+	}
+
+	return fmt.Errorf("failed to create tag after retries")
 }
 
 func GetOrCreateTags(names []string) ([]Tag, error) {
@@ -67,14 +85,4 @@ func GetOrCreateTags(names []string) ([]Tag, error) {
 	}
 
 	return tags, nil
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-
-	return ""
 }
