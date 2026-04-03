@@ -15,6 +15,9 @@ type Article struct {
 	CoverImage string         `gorm:"size:255" json:"cover_image"`
 	AuthorID   uint           `gorm:"not null;index" json:"author_id"`
 	Author     *User          `gorm:"foreignKey:AuthorID" json:"author,omitempty"`
+	CategoryID *uint          `gorm:"index" json:"category_id"`
+	Category   *Category      `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
+	Tags       []Tag          `gorm:"many2many:article_tags" json:"tags,omitempty"`
 	Status     string         `gorm:"size:20;default:draft;index" json:"status"`
 	ViewCount  int            `gorm:"default:0" json:"view_count"`
 	CreatedAt  time.Time      `json:"created_at"`
@@ -100,4 +103,20 @@ func IncrementViewCount(id uint) error {
 	return dao.DB.Model(&Article{}).
 		Where("id = ?", id).
 		UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error
+}
+
+func UpdateArticleTags(articleID uint, tagIDs []uint) error {
+	var article Article
+	if err := dao.DB.First(&article, articleID).Error; err != nil {
+		return err
+	}
+
+	tags := make([]Tag, 0, len(tagIDs))
+	if len(tagIDs) > 0 {
+		if err := dao.DB.Where("id IN ?", tagIDs).Find(&tags).Error; err != nil {
+			return err
+		}
+	}
+
+	return dao.DB.Model(&article).Association("Tags").Replace(tags)
 }
