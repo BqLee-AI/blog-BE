@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"blog-BE/src/middleware"
 	"blog-BE/src/models"
 	"blog-BE/src/service"
 	"blog-BE/src/utils"
@@ -12,35 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
-
-// 统一响应结构
-type Response struct {
-	Message   string      `json:"message"`
-	Data      interface{} `json:"data"`
-	RequestID string      `json:"requestId,omitempty"`
-	Code      string      `json:"code,omitempty"`
-}
-
-func newResponse(c *gin.Context, message string, data interface{}, code string) Response {
-	requestID := strings.TrimSpace(c.GetHeader("X-Request-ID"))
-	if requestID == "" {
-		requestID = strings.TrimSpace(c.GetHeader("X-Trace-ID"))
-	}
-	if requestID == "" {
-		if value, exists := c.Get("request_id"); exists {
-			if id, ok := value.(string); ok {
-				requestID = strings.TrimSpace(id)
-			}
-		}
-	}
-
-	return Response{
-		Message:   message,
-		Data:      data,
-		RequestID: requestID,
-		Code:      code,
-	}
-}
 
 type loginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
@@ -61,7 +33,7 @@ type registerRequest struct {
 func LoginHandler(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, newResponse(
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
 			c,
 			"Invalid login payload",
 			nil,
@@ -72,7 +44,7 @@ func LoginHandler(c *gin.Context) {
 
 	user, err := models.FindUserByEmail(req.Email)
 	if err != nil || !utils.CheckPassword(req.Password, user.Password) {
-		c.JSON(http.StatusUnauthorized, newResponse(
+		c.JSON(http.StatusUnauthorized, utils.NewResponse(
 			c,
 			"Invalid email or password",
 			nil,
@@ -83,7 +55,7 @@ func LoginHandler(c *gin.Context) {
 
 	tokens, err := utils.GenerateTokenPair(user.ID, user.Username, user.RoleID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, newResponse(
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to generate token",
 			nil,
@@ -92,7 +64,7 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, newResponse(
+	c.JSON(http.StatusOK, utils.NewResponse(
 		c,
 		"Login successful",
 		gin.H{
@@ -120,7 +92,7 @@ func RefreshTokenHandler(c *gin.Context) {
 		refreshToken = utils.ExtractBearerToken(c.GetHeader("Authorization"))
 	}
 	if refreshToken == "" {
-		c.JSON(http.StatusBadRequest, newResponse(
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
 			c,
 			"Refresh token is required",
 			nil,
@@ -131,7 +103,7 @@ func RefreshTokenHandler(c *gin.Context) {
 
 	tokens, err := utils.RefreshTokenPair(refreshToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, newResponse(
+		c.JSON(http.StatusUnauthorized, utils.NewResponse(
 			c,
 			"Invalid or expired refresh token",
 			nil,
@@ -140,7 +112,7 @@ func RefreshTokenHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, newResponse(
+	c.JSON(http.StatusOK, utils.NewResponse(
 		c,
 		"Token refreshed successfully",
 		gin.H{
@@ -155,9 +127,9 @@ func RefreshTokenHandler(c *gin.Context) {
 }
 
 func MeHandler(c *gin.Context) {
-	claims, ok := utilsClaimsFromContext(c)
+	claims, ok := middleware.ClaimsFromContext(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, newResponse(
+		c.JSON(http.StatusUnauthorized, utils.NewResponse(
 			c,
 			"Unauthorized",
 			nil,
@@ -166,7 +138,7 @@ func MeHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, newResponse(
+	c.JSON(http.StatusOK, utils.NewResponse(
 		c,
 		"Token is valid",
 		gin.H{
@@ -182,7 +154,7 @@ func MeHandler(c *gin.Context) {
 func SendVerificationCodeHandler(c *gin.Context) {
 	var req verificationCodeRequest
 	if err := c.ShouldBind(&req); err != nil {
-		c.JSON(http.StatusBadRequest, newResponse(
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
 			c,
 			"Invalid verification code request payload",
 			nil,
@@ -192,7 +164,7 @@ func SendVerificationCodeHandler(c *gin.Context) {
 	}
 
 	if _, err := models.FindUserByEmail(req.Email); err == nil {
-		c.JSON(http.StatusConflict, newResponse(
+		c.JSON(http.StatusConflict, utils.NewResponse(
 			c,
 			"Email is already registered",
 			nil,
@@ -200,7 +172,7 @@ func SendVerificationCodeHandler(c *gin.Context) {
 		))
 		return
 	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		c.JSON(http.StatusInternalServerError, newResponse(
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			fmt.Sprintf("Failed to check email status: %v", err),
 			nil,
@@ -212,7 +184,7 @@ func SendVerificationCodeHandler(c *gin.Context) {
 	if err := service.SendVerificationCode(req.Email); err != nil {
 		var cooldownErr *service.VerificationCooldownError
 		if errors.As(err, &cooldownErr) {
-			c.JSON(http.StatusTooManyRequests, newResponse(
+			c.JSON(http.StatusTooManyRequests, utils.NewResponse(
 				c,
 				cooldownErr.Error(),
 				gin.H{"retry_after_seconds": int(cooldownErr.Remaining.Seconds())},
@@ -221,7 +193,7 @@ func SendVerificationCodeHandler(c *gin.Context) {
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, newResponse(
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			fmt.Sprintf("Failed to send verification code: %v", err),
 			nil,
@@ -230,7 +202,7 @@ func SendVerificationCodeHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, newResponse(
+	c.JSON(http.StatusOK, utils.NewResponse(
 		c,
 		"Verification code sent successfully",
 		gin.H{"retry_after_seconds": 60},
@@ -238,20 +210,10 @@ func SendVerificationCodeHandler(c *gin.Context) {
 	))
 }
 
-func utilsClaimsFromContext(c *gin.Context) (*utils.Claims, bool) {
-	value, exists := c.Get("jwtClaims")
-	if !exists {
-		return nil, false
-	}
-
-	claims, ok := value.(*utils.Claims)
-	return claims, ok
-}
-
 func RegisterHandler(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBind(&req); err != nil {
-		c.JSON(http.StatusBadRequest, newResponse(
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
 			c,
 			"Invalid registration payload",
 			nil,
@@ -261,7 +223,7 @@ func RegisterHandler(c *gin.Context) {
 	}
 
 	if _, err := models.FindUserByEmail(req.Email); err == nil {
-		c.JSON(http.StatusConflict, newResponse(
+		c.JSON(http.StatusConflict, utils.NewResponse(
 			c,
 			"Email is already registered",
 			nil,
@@ -269,7 +231,7 @@ func RegisterHandler(c *gin.Context) {
 		))
 		return
 	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		c.JSON(http.StatusInternalServerError, newResponse(
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			fmt.Sprintf("Failed to check email status: %v", err),
 			nil,
@@ -281,28 +243,28 @@ func RegisterHandler(c *gin.Context) {
 	if err := service.VerifyVerificationCode(req.Email, req.Code); err != nil {
 		switch {
 		case errors.Is(err, service.ErrVerificationCodeNotFound):
-			c.JSON(http.StatusBadRequest, newResponse(
+			c.JSON(http.StatusBadRequest, utils.NewResponse(
 				c,
 				"Verification code not found or expired",
 				nil,
 				"VERIFICATION_CODE_MISSING",
 			))
 		case errors.Is(err, service.ErrVerificationCodeExpired):
-			c.JSON(http.StatusBadRequest, newResponse(
+			c.JSON(http.StatusBadRequest, utils.NewResponse(
 				c,
 				"Verification code has expired, please request a new one",
 				nil,
 				"VERIFICATION_CODE_EXPIRED",
 			))
 		case errors.Is(err, service.ErrVerificationCodeInvalid):
-			c.JSON(http.StatusBadRequest, newResponse(
+			c.JSON(http.StatusBadRequest, utils.NewResponse(
 				c,
 				"Verification code is incorrect",
 				nil,
 				"VERIFICATION_CODE_INVALID",
 			))
 		default:
-			c.JSON(http.StatusInternalServerError, newResponse(
+			c.JSON(http.StatusInternalServerError, utils.NewResponse(
 				c,
 				fmt.Sprintf("Failed to verify code: %v", err),
 				nil,
@@ -315,14 +277,14 @@ func RegisterHandler(c *gin.Context) {
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
 		if errors.Is(err, utils.ErrPasswordTooLong) {
-			c.JSON(http.StatusBadRequest, newResponse(
+			c.JSON(http.StatusBadRequest, utils.NewResponse(
 				c,
 				"Password is too long",
 				nil,
 				"PASSWORD_TOO_LONG",
 			))
 		} else {
-			c.JSON(http.StatusInternalServerError, newResponse(
+			c.JSON(http.StatusInternalServerError, utils.NewResponse(
 				c,
 				"Password hashing failed",
 				nil,
@@ -339,7 +301,7 @@ func RegisterHandler(c *gin.Context) {
 	}
 
 	if err := models.CreateUser(user); err != nil {
-		c.JSON(http.StatusInternalServerError, newResponse(
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Registration failed",
 			nil,
@@ -347,7 +309,7 @@ func RegisterHandler(c *gin.Context) {
 		))
 		return
 	}
-	c.JSON(http.StatusOK, newResponse(
+	c.JSON(http.StatusOK, utils.NewResponse(
 		c,
 		"Registration successful",
 		gin.H{"user_id": user.ID},

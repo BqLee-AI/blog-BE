@@ -15,20 +15,24 @@ func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := utils.ExtractBearerToken(c.GetHeader("Authorization"))
 		if token == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "Missing bearer token",
-				"code":    "TOKEN_MISSING",
-			})
+			c.JSON(http.StatusUnauthorized, utils.NewResponse(
+				c,
+				"Missing bearer token",
+				nil,
+				"TOKEN_MISSING",
+			))
 			c.Abort()
 			return
 		}
 
 		claims, err := utils.ParseAccessToken(token)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "Invalid or expired token",
-				"code":    "TOKEN_INVALID",
-			})
+			c.JSON(http.StatusUnauthorized, utils.NewResponse(
+				c,
+				"Invalid or expired token",
+				nil,
+				"TOKEN_INVALID",
+			))
 			c.Abort()
 			return
 		}
