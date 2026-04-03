@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"gorm.io/gorm"
 )
@@ -53,7 +54,7 @@ func normalizeSlugBase(rawValue string) string {
 
 	for _, r := range rawValue {
 		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+		case unicode.IsLetter(r), unicode.IsDigit(r):
 			builder.WriteRune(r)
 			lastWasHyphen = false
 		case r == ' ' || r == '-' || r == '_' || r == '.' || r == '/':
@@ -68,11 +69,16 @@ func normalizeSlugBase(rawValue string) string {
 }
 
 func truncateSlug(value string, maxLength int) string {
-	if maxLength <= 0 || len(value) <= maxLength {
+	if maxLength <= 0 {
+		return ""
+	}
+
+	runes := []rune(value)
+	if len(runes) <= maxLength {
 		return value
 	}
 
-	return strings.Trim(value[:maxLength], "-")
+	return strings.Trim(string(runes[:maxLength]), "-")
 }
 
 func firstNonEmpty(values ...string) string {
