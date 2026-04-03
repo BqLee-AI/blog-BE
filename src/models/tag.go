@@ -43,7 +43,7 @@ func CreateTag(tag *Tag) error {
 
 		if err := dao.DB.Create(tag).Error; err != nil {
 			lastErr = err
-			if isUniqueConstraintError(err) {
+			if isSlugUniqueConstraintError(err) {
 				continue
 			}
 			return err

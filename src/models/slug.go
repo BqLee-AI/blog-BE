@@ -92,3 +92,12 @@ func isUniqueConstraintError(err error) bool {
 
 	return errors.Is(err, gorm.ErrDuplicatedKey) || strings.Contains(strings.ToLower(err.Error()), "duplicate key value violates unique constraint")
 }
+
+func isSlugUniqueConstraintError(err error) bool {
+	if !isUniqueConstraintError(err) {
+		return false
+	}
+
+	lowerErr := strings.ToLower(err.Error())
+	return strings.Contains(lowerErr, "slug")
+}
