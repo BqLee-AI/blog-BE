@@ -2,6 +2,7 @@ package models
 
 import (
 	"blog-BE/src/dao"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -33,11 +34,28 @@ func GetCategoryByID(id uint) (*Category, error) {
 }
 
 func CreateCategory(category *Category) error {
-	slug, err := buildUniqueSlug(&Category{}, firstNonEmpty(category.Slug, category.Name), 50)
-	if err != nil {
-		return err
-	}
-	category.Slug = slug
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		slug, err := buildUniqueSlug(&Category{}, firstNonEmpty(category.Slug, category.Name), 50)
+		if err != nil {
+			return err
+		}
+		category.Slug = slug
 
-	return dao.DB.Create(category).Error
+		if err := dao.DB.Create(category).Error; err != nil {
+			lastErr = err
+			if isUniqueConstraintError(err) {
+				continue
+			}
+			return err
+		}
+
+		return nil
+	}
+
+	if lastErr != nil {
+		return lastErr
+	}
+
+	return fmt.Errorf("failed to create category after retries")
 }
