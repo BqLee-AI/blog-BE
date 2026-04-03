@@ -61,6 +61,7 @@ func CreateTag(tag *Tag) error {
 
 func GetOrCreateTags(names []string) ([]Tag, error) {
 	tags := make([]Tag, 0, len(names))
+	seen := make(map[string]struct{}, len(names))
 
 	for _, name := range names {
 		trimmedName := strings.TrimSpace(name)
@@ -68,8 +69,14 @@ func GetOrCreateTags(names []string) ([]Tag, error) {
 			continue
 		}
 
+		normalizedName := strings.ToLower(trimmedName)
+		if _, ok := seen[normalizedName]; ok {
+			continue
+		}
+		seen[normalizedName] = struct{}{}
+
 		var tag Tag
-		err := dao.DB.Where("name = ?", trimmedName).First(&tag).Error
+		err := dao.DB.Where("LOWER(name) = LOWER(?)", trimmedName).First(&tag).Error
 		if err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, err
