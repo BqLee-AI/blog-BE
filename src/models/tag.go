@@ -36,6 +36,10 @@ func CreateTag(tag *Tag) error {
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
 		tag.Name = strings.ToLower(strings.TrimSpace(tag.Name))
+		if tag.Name == "" {
+			return errors.New("tag name cannot be empty")
+		}
+
 		slug, err := buildUniqueSlug(&Tag{}, firstNonEmpty(tag.Slug, tag.Name), 30)
 		if err != nil {
 			return err
