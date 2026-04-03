@@ -33,5 +33,11 @@ func GetCategoryByID(id uint) (*Category, error) {
 }
 
 func CreateCategory(category *Category) error {
+	slug, err := buildUniqueSlug(&Category{}, firstNonEmpty(category.Slug, category.Name), 50)
+	if err != nil {
+		return err
+	}
+	category.Slug = slug
+
 	return dao.DB.Create(category).Error
 }
