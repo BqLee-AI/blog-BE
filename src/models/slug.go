@@ -2,8 +2,11 @@ package models
 
 import (
 	"blog-BE/src/dao"
+	"errors"
 	"fmt"
 	"strings"
+
+	"gorm.io/gorm"
 )
 
 func buildUniqueSlug(model any, rawValue string, maxLength int) (string, error) {
@@ -17,7 +20,7 @@ func buildUniqueSlug(model any, rawValue string, maxLength int) (string, error) 
 
 	for suffix := 2; ; suffix++ {
 		var count int64
-		if err := dao.DB.Model(model).Where("slug = ?", slug).Count(&count).Error; err != nil {
+		if err := dao.DB.Unscoped().Model(model).Where("slug = ?", slug).Count(&count).Error; err != nil {
 			return "", err
 		}
 		if count == 0 {
@@ -70,4 +73,22 @@ func truncateSlug(value string, maxLength int) string {
 	}
 
 	return strings.Trim(value[:maxLength], "-")
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+
+	return ""
+}
+
+func isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	return errors.Is(err, gorm.ErrDuplicatedKey) || strings.Contains(strings.ToLower(err.Error()), "duplicate key value violates unique constraint")
 }
