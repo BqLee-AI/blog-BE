@@ -2,6 +2,7 @@ package models
 
 import (
 	"blog-BE/src/dao"
+	"errors"
 	"strings"
 	"time"
 
@@ -46,7 +47,7 @@ func GetOrCreateTags(names []string) ([]Tag, error) {
 		var tag Tag
 		err := dao.DB.Where("name = ?", trimmedName).First(&tag).Error
 		if err != nil {
-			if err != gorm.ErrRecordNotFound {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, err
 			}
 
