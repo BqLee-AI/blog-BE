@@ -29,7 +29,7 @@ func main() {
 	defer dao.MyClose()
 
 	// 模型绑定
-	if err := dao.DB.AutoMigrate(&models.User{}, &models.Article{}, &models.Category{}, &models.Tag{}); err != nil {
+	if err := dao.DB.AutoMigrate(&models.User{}, &models.Category{}, &models.Tag{}, &models.Article{}); err != nil {
 		log.Fatal("数据库迁移失败：", err)
 	}
 
