@@ -20,6 +20,9 @@ func SetupRouter() *gin.Engine {
 
 	v1 := router.Group("/api/v1")
 	{
+		v1.GET("/categories", handler.GetCategories)
+		v1.GET("/tags", handler.GetTags)
+
 		articles := v1.Group("/articles")
 		articles.GET("", handler.GetArticles)
 		articles.GET("/:id", handler.GetArticle)
