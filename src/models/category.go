@@ -22,7 +22,7 @@ type Category struct {
 
 func GetCategories() ([]Category, error) {
 	var categories []Category
-	err := dao.DB.Where("parent_id IS NULL").Order("sort_order ASC").Find(&categories).Error
+	err := dao.DB.Order("parent_id ASC").Order("sort_order ASC").Find(&categories).Error
 	return categories, err
 }
 
