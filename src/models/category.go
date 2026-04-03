@@ -54,7 +54,7 @@ func CreateCategory(category *Category) error {
 	}
 
 	if lastErr != nil {
-		return lastErr
+		return fmt.Errorf("failed to create category after retries: %w", lastErr)
 	}
 
 	return fmt.Errorf("failed to create category after retries")
