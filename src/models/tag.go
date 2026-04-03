@@ -35,6 +35,7 @@ func GetTagByID(id uint) (*Tag, error) {
 func CreateTag(tag *Tag) error {
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
+		tag.Name = strings.ToLower(strings.TrimSpace(tag.Name))
 		slug, err := buildUniqueSlug(&Tag{}, firstNonEmpty(tag.Slug, tag.Name), 30)
 		if err != nil {
 			return err
@@ -53,7 +54,7 @@ func CreateTag(tag *Tag) error {
 	}
 
 	if lastErr != nil {
-		return lastErr
+		return fmt.Errorf("failed to create tag after retries: %w", lastErr)
 	}
 
 	return fmt.Errorf("failed to create tag after retries")
@@ -76,7 +77,10 @@ func GetOrCreateTags(names []string) ([]Tag, error) {
 		seen[normalizedName] = struct{}{}
 
 		var tag Tag
-		err := dao.DB.Where("LOWER(name) = LOWER(?)", trimmedName).First(&tag).Error
+		err := dao.DB.Where("name = ?", normalizedName).First(&tag).Error
+		if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+			err = dao.DB.Where("LOWER(name) = LOWER(?)", trimmedName).First(&tag).Error
+		}
 		if err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, err
