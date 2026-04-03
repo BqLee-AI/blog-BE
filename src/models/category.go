@@ -10,8 +10,8 @@ import (
 
 type Category struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
-	Name        string         `gorm:"size:50;not null;uniqueIndex" json:"name"`
-	Slug        string         `gorm:"size:50;uniqueIndex" json:"slug"`
+	Name        string         `gorm:"size:50;not null;uniqueIndex:idx_categories_name_active,where:deleted_at IS NULL" json:"name"`
+	Slug        string         `gorm:"size:50;uniqueIndex:idx_categories_slug_active,where:deleted_at IS NULL" json:"slug"`
 	Description string         `gorm:"size:255" json:"description"`
 	ParentID    *uint          `gorm:"index" json:"parent_id"`
 	Parent      *Category      `gorm:"foreignKey:ParentID" json:"parent,omitempty"`
