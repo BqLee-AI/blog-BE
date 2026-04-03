@@ -3,6 +3,7 @@ package models
 import (
 	"blog-BE/src/dao"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -36,6 +37,11 @@ func GetCategoryByID(id uint) (*Category, error) {
 func CreateCategory(category *Category) error {
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
+		category.Name = strings.TrimSpace(category.Name)
+		if category.Name == "" {
+			return fmt.Errorf("category name cannot be empty")
+		}
+
 		slug, err := buildUniqueSlug(&Category{}, firstNonEmpty(category.Slug, category.Name), 50)
 		if err != nil {
 			return err
