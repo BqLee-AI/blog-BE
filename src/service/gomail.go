@@ -5,37 +5,54 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"blog-BE/src/config"
 
 	"gopkg.in/gomail.v2"
 )
 
-func SendMail(mailFrom string, mailTo string) (string, error) {
+func SendMail(mailFrom string, mailTo string, code string) error {
 	// 接收消息的邮箱不能为空
 	if mailTo == "" {
-		return "", errors.New("mailTo:接收消息的邮箱不能为空")
+		return errors.New("mailTo:接收消息的邮箱不能为空")
 	}
 
-	code := GenerateCode()
+	fromAddress := config.AppConfig.MailUsername
+	if mailFrom != "" {
+		fromAddress = mailFrom
+	}
+	if fromAddress == "" {
+		return errors.New("mailFrom:发件人邮箱不能为空")
+	}
+
 	m := gomail.NewMessage()
-	m.SetHeader("From", m.FormatAddress(config.AppConfig.MailUsername, mailFrom)) // 这种方式可以添加别名
-	m.SetHeader("To", mailTo)                                                     // 发送给用户
-	m.SetHeader("Subject", "验证码")                                                 // 设置邮件主题
-	m.SetBody("text/html", retHTMLMessage(mailTo, code))                          // 设置邮件正文
+	m.SetHeader("From", fromAddress)
+	m.SetHeader("To", mailTo)                            // 发送给用户
+	m.SetHeader("Subject", "验证码")                        // 设置邮件主题
+	m.SetBody("text/html", retHTMLMessage(mailTo, code)) // 设置邮件正文
 
 	// 连接
 	dialer := gomail.NewDialer(config.AppConfig.MailHost, config.AppConfig.MailPort, config.AppConfig.MailUsername, config.AppConfig.MailPassword)
 
 	// 发送
-	erBySend := dialer.DialAndSend(m)
-	if erBySend != nil {
-		fmt.Printf("base package SendMail send error:%v", erBySend.Error())
-		// error
-		return "", erBySend
+	sendResult := make(chan error, 1)
+	go func() {
+		sendResult <- dialer.DialAndSend(m)
+	}()
+
+	select {
+	case erBySend := <-sendResult:
+		if erBySend != nil {
+			fmt.Printf("base package SendMail send error:%v", erBySend.Error())
+			// error
+			return erBySend
+		}
+	case <-time.After(time.Minute):
+		return errors.New("send verification code timeout after 1 minute")
 	}
 	// success
-	return code, nil
+	return nil
 }
 
 // 生成随机验证码
