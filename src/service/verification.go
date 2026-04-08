@@ -85,7 +85,7 @@ func SendVerificationCode(mailTo string) error {
 		return err
 	}
 
-	if err := SendMail("", mailTo, code); err != nil {
+	if err := SendMail("", normalizedEmail, code); err != nil {
 		_, _ = config.RedisClient.Del(ctx, cooldownKey, codeKey).Result()
 		return err
 	}
