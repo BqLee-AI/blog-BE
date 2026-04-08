@@ -80,9 +80,6 @@ func SendVerificationCode(mailTo string) error {
 
 	code := GenerateCode()
 
-	if err := config.RedisClient.Set(ctx, cooldownKey, "1", verificationCodeCooldown).Err(); err != nil {
-		return err
-	}
 	if err := config.RedisClient.Set(ctx, codeKey, code, verificationCodeTTL).Err(); err != nil {
 		_ = config.RedisClient.Del(ctx, cooldownKey).Err()
 		return err
@@ -128,17 +125,4 @@ func VerifyVerificationCode(mailTo string, code string) error {
 	}
 
 	return nil
-}
-
-func getVerificationCooldown(ctx context.Context, cooldownKey string) (time.Duration, bool, error) {
-	ttl, err := config.RedisClient.TTL(ctx, cooldownKey).Result()
-	if err != nil {
-		return 0, false, err
-	}
-
-	if ttl > 0 {
-		return ttl, true, nil
-	}
-
-	return 0, false, nil
 }
