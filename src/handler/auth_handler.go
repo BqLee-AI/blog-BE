@@ -118,10 +118,10 @@ func VerifyEmailHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusBadRequest, utils.NewResponse(
+	c.JSON(http.StatusInternalServerError, utils.NewResponse(
 		c,
-		"Verification code is incorrect or expired",
+		"Failed to verify code",
 		nil,
-		"VERIFICATION_CODE_INVALID",
+		"VERIFICATION_CHECK_FAILED",
 	))
 }
