@@ -92,12 +92,28 @@ func VerifyEmailHandler(c *gin.Context) {
 		return
 	}
 
-	if service.VerifyCode(req.Email, req.Code) {
+	if err := service.VerifyVerificationCode(req.Email, req.Code); err == nil {
 		c.JSON(http.StatusOK, utils.NewResponse(
 			c,
 			"Email verification successful",
 			gin.H{"verified": true},
 			"",
+		))
+		return
+	} else if errors.Is(err, service.ErrVerificationCodeNotFound) {
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
+			c,
+			"Verification code not found",
+			nil,
+			"VERIFICATION_CODE_MISSING",
+		))
+		return
+	} else if errors.Is(err, service.ErrVerificationCodeInvalid) {
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
+			c,
+			"Verification code is incorrect or expired",
+			nil,
+			"VERIFICATION_CODE_INVALID",
 		))
 		return
 	}

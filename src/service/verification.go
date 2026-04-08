@@ -88,22 +88,7 @@ func SendVerificationCode(mailTo string) error {
 }
 
 func VerifyCode(email, code string) bool {
-	normalizedEmail := normalizeVerificationEmail(email)
-	if normalizedEmail == "" || strings.TrimSpace(code) == "" {
-		return false
-	}
-
-	if config.RedisClient == nil {
-		return false
-	}
-
-	ctx := context.Background()
-	storedCode, err := config.RedisClient.Get(ctx, verificationCodeKey(normalizedEmail)).Result()
-	if err != nil {
-		return false
-	}
-
-	return storedCode == strings.TrimSpace(code)
+	return VerifyVerificationCode(email, code) == nil
 }
 
 func VerifyVerificationCode(mailTo string, code string) error {
