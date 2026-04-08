@@ -19,10 +19,6 @@ type loginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-type verificationCodeRequest struct {
-	Email string `json:"email" form:"email" binding:"required,email"`
-}
-
 type registerRequest struct {
 	Username string `json:"username" form:"username" binding:"required"`
 	Email    string `json:"email" form:"email" binding:"required,email"`
@@ -151,65 +147,6 @@ func MeHandler(c *gin.Context) {
 	))
 }
 
-func SendVerificationCodeHandler(c *gin.Context) {
-	var req verificationCodeRequest
-	if err := c.ShouldBind(&req); err != nil {
-		c.JSON(http.StatusBadRequest, utils.NewResponse(
-			c,
-			"Invalid verification code request payload",
-			nil,
-			"INVALID_REQUEST",
-		))
-		return
-	}
-
-	if _, err := models.FindUserByEmail(req.Email); err == nil {
-		c.JSON(http.StatusConflict, utils.NewResponse(
-			c,
-			"Email is already registered",
-			nil,
-			"EMAIL_ALREADY_REGISTERED",
-		))
-		return
-	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		c.JSON(http.StatusInternalServerError, utils.NewResponse(
-			c,
-			fmt.Sprintf("Failed to check email status: %v", err),
-			nil,
-			"DATABASE_ERROR",
-		))
-		return
-	}
-
-	if err := service.SendVerificationCode(req.Email); err != nil {
-		var cooldownErr *service.VerificationCooldownError
-		if errors.As(err, &cooldownErr) {
-			c.JSON(http.StatusTooManyRequests, utils.NewResponse(
-				c,
-				cooldownErr.Error(),
-				gin.H{"retry_after_seconds": int(cooldownErr.Remaining.Seconds())},
-				"VERIFICATION_COOLDOWN",
-			))
-			return
-		}
-
-		c.JSON(http.StatusInternalServerError, utils.NewResponse(
-			c,
-			fmt.Sprintf("Failed to send verification code: %v", err),
-			nil,
-			"VERIFICATION_SEND_FAILED",
-		))
-		return
-	}
-
-	c.JSON(http.StatusOK, utils.NewResponse(
-		c,
-		"Verification code sent successfully",
-		gin.H{"retry_after_seconds": 60},
-		"",
-	))
-}
-
 func RegisterHandler(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBind(&req); err != nil {
@@ -245,16 +182,9 @@ func RegisterHandler(c *gin.Context) {
 		case errors.Is(err, service.ErrVerificationCodeNotFound):
 			c.JSON(http.StatusBadRequest, utils.NewResponse(
 				c,
-				"Verification code not found or expired",
+				"Verification code not found",
 				nil,
 				"VERIFICATION_CODE_MISSING",
-			))
-		case errors.Is(err, service.ErrVerificationCodeExpired):
-			c.JSON(http.StatusBadRequest, utils.NewResponse(
-				c,
-				"Verification code has expired, please request a new one",
-				nil,
-				"VERIFICATION_CODE_EXPIRED",
 			))
 		case errors.Is(err, service.ErrVerificationCodeInvalid):
 			c.JSON(http.StatusBadRequest, utils.NewResponse(
