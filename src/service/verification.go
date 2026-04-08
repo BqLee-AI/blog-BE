@@ -63,10 +63,19 @@ func SendVerificationCode(mailTo string) error {
 	cooldownKey := verificationCooldownKey(normalizedEmail)
 	codeKey := verificationCodeKey(normalizedEmail)
 
-	if remaining, limited, err := getVerificationCooldown(ctx, cooldownKey); err != nil {
+	ok, err := config.RedisClient.SetNX(ctx, cooldownKey, "1", verificationCodeCooldown).Result()
+	if err != nil {
 		return err
-	} else if limited {
-		return &VerificationCooldownError{Remaining: remaining}
+	}
+	if !ok {
+		ttl, ttlErr := config.RedisClient.TTL(ctx, cooldownKey).Result()
+		if ttlErr != nil {
+			return ttlErr
+		}
+		if ttl <= 0 {
+			ttl = verificationCodeCooldown
+		}
+		return &VerificationCooldownError{Remaining: ttl}
 	}
 
 	code := GenerateCode()
