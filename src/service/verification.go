@@ -17,6 +17,18 @@ var (
 	ErrVerificationCodeInvalid  = errors.New("verification code invalid")
 )
 
+var verifyAndConsumeCodeScript = redis.NewScript(`
+local current = redis.call("GET", KEYS[1])
+if not current then
+  return 0
+end
+if current ~= ARGV[1] then
+  return -1
+end
+redis.call("DEL", KEYS[1])
+return 1
+`)
+
 type VerificationCooldownError struct {
 	Remaining time.Duration
 }
@@ -108,21 +120,22 @@ func VerifyVerificationCode(mailTo string, code string) error {
 	}
 
 	ctx := context.Background()
-	storedCode, err := config.RedisClient.Get(ctx, verificationCodeKey(normalizedEmail)).Result()
+	result, err := verifyAndConsumeCodeScript.Run(
+		ctx,
+		config.RedisClient,
+		[]string{verificationCodeKey(normalizedEmail)},
+		strings.TrimSpace(code),
+	).Int()
 	if err != nil {
-		if errors.Is(err, redis.Nil) {
-			return ErrVerificationCodeNotFound
-		}
 		return err
 	}
 
-	if storedCode != strings.TrimSpace(code) {
+	switch result {
+	case 1:
+		return nil
+	case 0:
+		return ErrVerificationCodeNotFound
+	default:
 		return ErrVerificationCodeInvalid
 	}
-
-	if err := config.RedisClient.Del(ctx, verificationCodeKey(normalizedEmail)).Err(); err != nil {
-		return err
-	}
-
-	return nil
 }
