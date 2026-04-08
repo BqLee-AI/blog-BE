@@ -65,7 +65,7 @@ func SendVerificationCodeHandler(c *gin.Context) {
 
 		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
-			fmt.Sprintf("Failed to send verification code: %v", err),
+			"Failed to send verification code",
 			nil,
 			"VERIFICATION_SEND_FAILED",
 		))
