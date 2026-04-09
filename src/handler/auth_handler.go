@@ -64,6 +64,7 @@ func SendVerificationCodeHandler(c *gin.Context) {
 			return
 		}
 
+		log.Printf("failed to send verification code: request_id=%s err=%v", utils.RequestIDFromContext(c), err)
 		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to send verification code",
@@ -93,7 +94,8 @@ func VerifyEmailHandler(c *gin.Context) {
 		return
 	}
 
-	if registrationToken, err := service.VerifyAndIssueRegistrationToken(req.Email, req.Code); err == nil {
+	registrationToken, err := service.VerifyAndIssueRegistrationToken(req.Email, req.Code)
+	if err == nil {
 		c.JSON(http.StatusOK, utils.NewResponse(
 			c,
 			"Email verification successful",
@@ -122,6 +124,7 @@ func VerifyEmailHandler(c *gin.Context) {
 		return
 	}
 
+	log.Printf("failed to verify email: request_id=%s err=%v", utils.RequestIDFromContext(c), err)
 	c.JSON(http.StatusInternalServerError, utils.NewResponse(
 		c,
 		"Failed to verify code",
