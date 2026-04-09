@@ -42,7 +42,7 @@ func SendVerificationCodeHandler(c *gin.Context) {
 		))
 		return
 	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		log.Printf("failed to check email status for send-code: email=%s err=%v", req.Email, err)
+		log.Printf("failed to check email status for send-code: email=[redacted] err=%v", err)
 		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to check email status",
