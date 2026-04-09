@@ -30,6 +30,19 @@ redis.call("DEL", KEYS[1])
 return 1
 `)
 
+var verifyAndMarkEmailVerifiedScript = redis.NewScript(`
+local current = redis.call("GET", KEYS[1])
+if not current then
+	return 0
+end
+if current ~= ARGV[1] then
+	return -1
+end
+redis.call("DEL", KEYS[1])
+redis.call("SET", KEYS[2], "1", "EX", ARGV[2])
+return 1
+`)
+
 var checkVerifiedEmailScript = redis.NewScript(`
 local current = redis.call("GET", KEYS[1])
 if not current then
@@ -139,6 +152,38 @@ func MarkEmailVerified(mailTo string) error {
 	}
 
 	return nil
+}
+
+func VerifyAndMarkEmailVerified(mailTo string, code string) error {
+	normalizedEmail := normalizeVerificationEmail(mailTo)
+	if normalizedEmail == "" {
+		return ErrVerificationCodeNotFound
+	}
+
+	if config.RedisClient == nil {
+		return errors.New("redis client is not initialized")
+	}
+
+	ctx := context.Background()
+	result, err := verifyAndMarkEmailVerifiedScript.Run(
+		ctx,
+		config.RedisClient,
+		[]string{verificationCodeKey(normalizedEmail), verificationEmailKey(normalizedEmail)},
+		strings.TrimSpace(code),
+		fmt.Sprintf("%d", int(verificationEmailTTL/time.Second)),
+	).Int()
+	if err != nil {
+		return err
+	}
+
+	switch result {
+	case 1:
+		return nil
+	case 0:
+		return ErrVerificationCodeNotFound
+	default:
+		return ErrVerificationCodeInvalid
+	}
 }
 
 func RequireEmailVerified(mailTo string) error {
