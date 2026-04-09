@@ -93,6 +93,16 @@ func VerifyEmailHandler(c *gin.Context) {
 	}
 
 	if err := service.VerifyVerificationCode(req.Email, req.Code); err == nil {
+		if err := service.MarkEmailVerified(req.Email); err != nil {
+			c.JSON(http.StatusInternalServerError, utils.NewResponse(
+				c,
+				"Failed to record verified email",
+				nil,
+				"VERIFICATION_MARK_FAILED",
+			))
+			return
+		}
+
 		c.JSON(http.StatusOK, utils.NewResponse(
 			c,
 			"Email verification successful",

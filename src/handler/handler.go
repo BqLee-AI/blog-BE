@@ -23,7 +23,7 @@ type registerRequest struct {
 	Username string `json:"username" form:"username" binding:"required"`
 	Email    string `json:"email" form:"email" binding:"required,email"`
 	Password string `json:"password" form:"password" binding:"required"`
-	Code     string `json:"code" form:"code" binding:"required"`
+	Code     string `json:"code" form:"code"`
 }
 
 func LoginHandler(c *gin.Context) {
@@ -177,28 +177,21 @@ func RegisterHandler(c *gin.Context) {
 		return
 	}
 
-	if err := service.VerifyVerificationCode(req.Email, req.Code); err != nil {
+	if err := service.RequireEmailVerified(req.Email); err != nil {
 		switch {
-		case errors.Is(err, service.ErrVerificationCodeNotFound):
+		case errors.Is(err, service.ErrEmailNotVerified):
 			c.JSON(http.StatusBadRequest, utils.NewResponse(
 				c,
-				"Verification code not found",
+				"Please verify your email before registering",
 				nil,
-				"VERIFICATION_CODE_MISSING",
-			))
-		case errors.Is(err, service.ErrVerificationCodeInvalid):
-			c.JSON(http.StatusBadRequest, utils.NewResponse(
-				c,
-				"Verification code is incorrect",
-				nil,
-				"VERIFICATION_CODE_INVALID",
+				"EMAIL_NOT_VERIFIED",
 			))
 		default:
 			c.JSON(http.StatusInternalServerError, utils.NewResponse(
 				c,
-				fmt.Sprintf("Failed to verify code: %v", err),
+				fmt.Sprintf("Failed to verify email status: %v", err),
 				nil,
-				"VERIFICATION_CHECK_FAILED",
+				"VERIFICATION_STATUS_CHECK_FAILED",
 			))
 		}
 		return
