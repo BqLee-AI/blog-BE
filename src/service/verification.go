@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,9 +15,11 @@ import (
 )
 
 var (
-	ErrVerificationCodeNotFound = errors.New("verification code not found")
-	ErrVerificationCodeInvalid  = errors.New("verification code invalid")
-	ErrEmailNotVerified         = errors.New("email not verified")
+	ErrVerificationCodeNotFound  = errors.New("verification code not found")
+	ErrVerificationCodeInvalid   = errors.New("verification code invalid")
+	ErrRegistrationTokenNotFound = errors.New("registration token not found")
+	ErrRegistrationTokenInvalid  = errors.New("registration token invalid")
+	ErrEmailNotVerified          = errors.New("email not verified")
 )
 
 var verifyAndConsumeCodeScript = redis.NewScript(`
@@ -40,6 +44,31 @@ if current ~= ARGV[1] then
 end
 redis.call("DEL", KEYS[1])
 redis.call("SET", KEYS[2], "1", "EX", ARGV[2])
+return 1
+`)
+
+var verifyAndIssueRegistrationTokenScript = redis.NewScript(`
+local current = redis.call("GET", KEYS[1])
+if not current then
+	return 0
+end
+if current ~= ARGV[1] then
+	return -1
+end
+redis.call("DEL", KEYS[1])
+redis.call("SET", KEYS[2], ARGV[2], "EX", ARGV[3])
+return 1
+`)
+
+var consumeRegistrationTokenScript = redis.NewScript(`
+local current = redis.call("GET", KEYS[1])
+if not current then
+	return 0
+end
+if current ~= ARGV[1] then
+	return -1
+end
+redis.call("DEL", KEYS[1])
 return 1
 `)
 
@@ -70,6 +99,7 @@ const (
 	verificationCodeTTL      = 5 * time.Minute
 	verificationCodeCooldown = 1 * time.Minute
 	verificationEmailTTL     = 10 * time.Minute
+	registrationTokenTTL     = 10 * time.Minute
 )
 
 func normalizeVerificationEmail(email string) string {
@@ -86,6 +116,18 @@ func verificationCooldownKey(email string) string {
 
 func verificationEmailKey(email string) string {
 	return fmt.Sprintf("verify:verified:%s", email)
+}
+
+func registrationTokenKey(token string) string {
+	return fmt.Sprintf("verify:register:%s", token)
+}
+
+func generateRegistrationToken() (string, error) {
+	buffer := make([]byte, 32)
+	if _, err := rand.Read(buffer); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buffer), nil
 }
 
 func SendVerificationCode(mailTo string) error {
@@ -183,6 +225,80 @@ func VerifyAndMarkEmailVerified(mailTo string, code string) error {
 		return ErrVerificationCodeNotFound
 	default:
 		return ErrVerificationCodeInvalid
+	}
+}
+
+func VerifyAndIssueRegistrationToken(mailTo string, code string) (string, error) {
+	normalizedEmail := normalizeVerificationEmail(mailTo)
+	if normalizedEmail == "" {
+		return "", ErrVerificationCodeNotFound
+	}
+
+	if config.RedisClient == nil {
+		return "", errors.New("redis client is not initialized")
+	}
+
+	registrationToken, err := generateRegistrationToken()
+	if err != nil {
+		return "", err
+	}
+
+	ctx := context.Background()
+	result, err := verifyAndIssueRegistrationTokenScript.Run(
+		ctx,
+		config.RedisClient,
+		[]string{verificationCodeKey(normalizedEmail), registrationTokenKey(registrationToken)},
+		strings.TrimSpace(code),
+		normalizedEmail,
+		fmt.Sprintf("%d", int(registrationTokenTTL/time.Second)),
+	).Int()
+	if err != nil {
+		return "", err
+	}
+
+	switch result {
+	case 1:
+		return registrationToken, nil
+	case 0:
+		return "", ErrVerificationCodeNotFound
+	default:
+		return "", ErrVerificationCodeInvalid
+	}
+}
+
+func ConsumeRegistrationToken(mailTo string, token string) error {
+	normalizedEmail := normalizeVerificationEmail(mailTo)
+	if normalizedEmail == "" {
+		return ErrRegistrationTokenNotFound
+	}
+
+	registrationToken := strings.TrimSpace(token)
+	if registrationToken == "" {
+		return ErrRegistrationTokenNotFound
+	}
+
+	if config.RedisClient == nil {
+		return errors.New("redis client is not initialized")
+	}
+
+	ctx := context.Background()
+	result, err := consumeRegistrationTokenScript.Run(
+		ctx,
+		config.RedisClient,
+		[]string{registrationTokenKey(registrationToken)},
+		normalizedEmail,
+	).Int()
+	if err != nil {
+		return err
+	}
+
+	switch result {
+	case 1:
+		return nil
+	case 0:
+		return ErrRegistrationTokenNotFound
+	default:
+		return ErrRegistrationTokenInvalid
 	}
 }
 
