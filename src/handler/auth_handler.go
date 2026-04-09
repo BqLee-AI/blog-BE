@@ -5,7 +5,7 @@ import (
 	"blog-BE/src/service"
 	"blog-BE/src/utils"
 	"errors"
-	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -42,9 +42,10 @@ func SendVerificationCodeHandler(c *gin.Context) {
 		))
 		return
 	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		log.Printf("failed to check email status for send-code: email=%s err=%v", req.Email, err)
 		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
-			fmt.Sprintf("Failed to check email status: %v", err),
+			"Failed to check email status",
 			nil,
 			"DATABASE_ERROR",
 		))
