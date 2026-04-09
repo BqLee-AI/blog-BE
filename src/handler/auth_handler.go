@@ -93,12 +93,14 @@ func VerifyEmailHandler(c *gin.Context) {
 		return
 	}
 
-	if err := service.VerifyAndMarkEmailVerified(req.Email, req.Code); err == nil {
-
+	if registrationToken, err := service.VerifyAndIssueRegistrationToken(req.Email, req.Code); err == nil {
 		c.JSON(http.StatusOK, utils.NewResponse(
 			c,
 			"Email verification successful",
-			gin.H{"verified": true},
+			gin.H{
+				"verified":           true,
+				"registration_token": registrationToken,
+			},
 			"",
 		))
 		return

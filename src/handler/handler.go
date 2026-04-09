@@ -20,10 +20,10 @@ type loginRequest struct {
 }
 
 type registerRequest struct {
-	Username string `json:"username" form:"username" binding:"required"`
-	Email    string `json:"email" form:"email" binding:"required,email"`
-	Password string `json:"password" form:"password" binding:"required"`
-	Code     string `json:"code" form:"code"`
+	Username          string `json:"username" form:"username" binding:"required"`
+	Email             string `json:"email" form:"email" binding:"required,email"`
+	Password          string `json:"password" form:"password" binding:"required"`
+	RegistrationToken string `json:"registration_token" form:"registration_token" binding:"required"`
 }
 
 func LoginHandler(c *gin.Context) {
@@ -178,22 +178,29 @@ func RegisterHandler(c *gin.Context) {
 		return
 	}
 
-	if err := service.RequireEmailVerified(req.Email); err != nil {
+	if err := service.ConsumeRegistrationToken(req.Email, req.RegistrationToken); err != nil {
 		switch {
-		case errors.Is(err, service.ErrEmailNotVerified):
+		case errors.Is(err, service.ErrRegistrationTokenNotFound):
 			c.JSON(http.StatusBadRequest, utils.NewResponse(
 				c,
-				"Please verify your email before registering",
+				"Registration token not found or expired",
 				nil,
-				"EMAIL_NOT_VERIFIED",
+				"REGISTRATION_TOKEN_MISSING",
+			))
+		case errors.Is(err, service.ErrRegistrationTokenInvalid):
+			c.JSON(http.StatusBadRequest, utils.NewResponse(
+				c,
+				"Registration token is invalid",
+				nil,
+				"REGISTRATION_TOKEN_INVALID",
 			))
 		default:
-			fmt.Printf("failed to verify email status for register: request_id=%s err=%v\n", utils.RequestIDFromContext(c), err)
+			fmt.Printf("failed to verify registration token for register: request_id=%s err=%v\n", utils.RequestIDFromContext(c), err)
 			c.JSON(http.StatusInternalServerError, utils.NewResponse(
 				c,
-				"Failed to verify email status",
+				"Failed to verify registration token",
 				nil,
-				"VERIFICATION_STATUS_CHECK_FAILED",
+				"REGISTRATION_TOKEN_CHECK_FAILED",
 			))
 		}
 		return
