@@ -178,6 +178,26 @@ func RegisterHandler(c *gin.Context) {
 		return
 	}
 
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		if errors.Is(err, utils.ErrPasswordTooLong) {
+			c.JSON(http.StatusBadRequest, utils.NewResponse(
+				c,
+				"Password is too long",
+				nil,
+				"PASSWORD_TOO_LONG",
+			))
+		} else {
+			c.JSON(http.StatusInternalServerError, utils.NewResponse(
+				c,
+				"Password hashing failed",
+				nil,
+				"PASSWORD_HASH_FAILED",
+			))
+		}
+		return
+	}
+
 	if err := service.ConsumeRegistrationToken(req.Email, req.RegistrationToken); err != nil {
 		switch {
 		case errors.Is(err, service.ErrRegistrationTokenNotFound):
@@ -201,26 +221,6 @@ func RegisterHandler(c *gin.Context) {
 				"Failed to verify registration token",
 				nil,
 				"REGISTRATION_TOKEN_CHECK_FAILED",
-			))
-		}
-		return
-	}
-
-	hashedPassword, err := utils.HashPassword(req.Password)
-	if err != nil {
-		if errors.Is(err, utils.ErrPasswordTooLong) {
-			c.JSON(http.StatusBadRequest, utils.NewResponse(
-				c,
-				"Password is too long",
-				nil,
-				"PASSWORD_TOO_LONG",
-			))
-		} else {
-			c.JSON(http.StatusInternalServerError, utils.NewResponse(
-				c,
-				"Password hashing failed",
-				nil,
-				"PASSWORD_HASH_FAILED",
 			))
 		}
 		return
