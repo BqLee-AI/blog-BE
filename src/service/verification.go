@@ -15,6 +15,7 @@ import (
 var (
 	ErrVerificationCodeNotFound = errors.New("verification code not found")
 	ErrVerificationCodeInvalid  = errors.New("verification code invalid")
+	ErrEmailNotVerified         = errors.New("email not verified")
 )
 
 var verifyAndConsumeCodeScript = redis.NewScript(`
@@ -26,6 +27,14 @@ if current ~= ARGV[1] then
   return -1
 end
 redis.call("DEL", KEYS[1])
+return 1
+`)
+
+var checkVerifiedEmailScript = redis.NewScript(`
+local current = redis.call("GET", KEYS[1])
+if not current then
+	return 0
+end
 return 1
 `)
 
@@ -47,6 +56,7 @@ func (e *VerificationCooldownError) Error() string {
 const (
 	verificationCodeTTL      = 5 * time.Minute
 	verificationCodeCooldown = 1 * time.Minute
+	verificationEmailTTL     = 10 * time.Minute
 )
 
 func normalizeVerificationEmail(email string) string {
@@ -59,6 +69,10 @@ func verificationCodeKey(email string) string {
 
 func verificationCooldownKey(email string) string {
 	return fmt.Sprintf("verify:cooldown:%s", email)
+}
+
+func verificationEmailKey(email string) string {
+	return fmt.Sprintf("verify:verified:%s", email)
 }
 
 func SendVerificationCode(mailTo string) error {
@@ -107,6 +121,51 @@ func SendVerificationCode(mailTo string) error {
 
 func VerifyCode(email, code string) bool {
 	return VerifyVerificationCode(email, code) == nil
+}
+
+func MarkEmailVerified(mailTo string) error {
+	normalizedEmail := normalizeVerificationEmail(mailTo)
+	if normalizedEmail == "" {
+		return ErrEmailNotVerified
+	}
+
+	if config.RedisClient == nil {
+		return errors.New("redis client is not initialized")
+	}
+
+	ctx := context.Background()
+	if err := config.RedisClient.Set(ctx, verificationEmailKey(normalizedEmail), "1", verificationEmailTTL).Err(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func RequireEmailVerified(mailTo string) error {
+	normalizedEmail := normalizeVerificationEmail(mailTo)
+	if normalizedEmail == "" {
+		return ErrEmailNotVerified
+	}
+
+	if config.RedisClient == nil {
+		return errors.New("redis client is not initialized")
+	}
+
+	ctx := context.Background()
+	result, err := checkVerifiedEmailScript.Run(
+		ctx,
+		config.RedisClient,
+		[]string{verificationEmailKey(normalizedEmail)},
+	).Int()
+	if err != nil {
+		return err
+	}
+
+	if result != 1 {
+		return ErrEmailNotVerified
+	}
+
+	return nil
 }
 
 func VerifyVerificationCode(mailTo string, code string) error {
