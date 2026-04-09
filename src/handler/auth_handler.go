@@ -58,7 +58,7 @@ func SendVerificationCodeHandler(c *gin.Context) {
 			c.JSON(http.StatusTooManyRequests, utils.NewResponse(
 				c,
 				cooldownErr.Error(),
-				gin.H{"retry_after_seconds": int(cooldownErr.Remaining.Seconds())},
+				gin.H{"retry_after_seconds": cooldownErr.RetryAfterSeconds()},
 				"VERIFICATION_COOLDOWN",
 			))
 			return

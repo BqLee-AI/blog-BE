@@ -84,7 +84,7 @@ type VerificationCooldownError struct {
 	Remaining time.Duration
 }
 
-func (e *VerificationCooldownError) Error() string {
+func (e *VerificationCooldownError) RetryAfterSeconds() int {
 	seconds := int(e.Remaining.Seconds())
 	if e.Remaining%time.Second != 0 {
 		seconds++
@@ -92,7 +92,11 @@ func (e *VerificationCooldownError) Error() string {
 	if seconds < 1 {
 		seconds = 1
 	}
-	return fmt.Sprintf("请在 %d 秒后重新发送验证码", seconds)
+	return seconds
+}
+
+func (e *VerificationCooldownError) Error() string {
+	return fmt.Sprintf("请在 %d 秒后重新发送验证码", e.RetryAfterSeconds())
 }
 
 const (
