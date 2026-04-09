@@ -168,7 +168,7 @@ func RegisterHandler(c *gin.Context) {
 		))
 		return
 	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		fmt.Printf("failed to check email status for register: email=[redacted] err=%v\n", err)
+		fmt.Printf("failed to check email status for register: request_id=%s err=%v\n", utils.RequestIDFromContext(c), err)
 		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to check email status",
@@ -188,7 +188,7 @@ func RegisterHandler(c *gin.Context) {
 				"EMAIL_NOT_VERIFIED",
 			))
 		default:
-			fmt.Printf("failed to verify email status for register: email=[redacted] err=%v\n", err)
+			fmt.Printf("failed to verify email status for register: request_id=%s err=%v\n", utils.RequestIDFromContext(c), err)
 			c.JSON(http.StatusInternalServerError, utils.NewResponse(
 				c,
 				"Failed to verify email status",
