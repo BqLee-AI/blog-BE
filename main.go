@@ -17,6 +17,9 @@ func main() {
 	if err := config.LoadConfig(".env"); err != nil {
 		log.Fatal("加载 .env 文件失败：", err)
 	}
+	if err := config.InitRedis(); err != nil {
+		log.Fatal("Redis 连接失败：", err)
+	}
 
 	// 设置 Gin 模式
 	gin.SetMode(config.AppConfig.GinMode)

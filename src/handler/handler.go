@@ -19,15 +19,21 @@ type loginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-type verificationCodeRequest struct {
-	Email string `json:"email" form:"email" binding:"required,email"`
+type registerRequest struct {
+	Username          string `json:"username" form:"username" binding:"required"`
+	Email             string `json:"email" form:"email" binding:"required,email"`
+	Password          string `json:"password" form:"password" binding:"required"`
+	RegistrationToken string `json:"registration_token" form:"registration_token"`
+	Code              string `json:"code" form:"code"`
 }
 
-type registerRequest struct {
-	Username string `json:"username" form:"username" binding:"required"`
-	Email    string `json:"email" form:"email" binding:"required,email"`
-	Password string `json:"password" form:"password" binding:"required"`
-	Code     string `json:"code" form:"code" binding:"required"`
+func (r registerRequest) verificationCredential() (string, bool) {
+	token := strings.TrimSpace(r.RegistrationToken)
+	if token != "" {
+		return token, true
+	}
+
+	return strings.TrimSpace(r.Code), false
 }
 
 func LoginHandler(c *gin.Context) {
@@ -151,68 +157,20 @@ func MeHandler(c *gin.Context) {
 	))
 }
 
-func SendVerificationCodeHandler(c *gin.Context) {
-	var req verificationCodeRequest
+func RegisterHandler(c *gin.Context) {
+	var req registerRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, utils.NewResponse(
 			c,
-			"Invalid verification code request payload",
+			"Invalid registration payload",
 			nil,
 			"INVALID_REQUEST",
 		))
 		return
 	}
 
-	if _, err := models.FindUserByEmail(req.Email); err == nil {
-		c.JSON(http.StatusConflict, utils.NewResponse(
-			c,
-			"Email is already registered",
-			nil,
-			"EMAIL_ALREADY_REGISTERED",
-		))
-		return
-	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		c.JSON(http.StatusInternalServerError, utils.NewResponse(
-			c,
-			fmt.Sprintf("Failed to check email status: %v", err),
-			nil,
-			"DATABASE_ERROR",
-		))
-		return
-	}
-
-	if err := service.SendVerificationCode(req.Email); err != nil {
-		var cooldownErr *service.VerificationCooldownError
-		if errors.As(err, &cooldownErr) {
-			c.JSON(http.StatusTooManyRequests, utils.NewResponse(
-				c,
-				cooldownErr.Error(),
-				gin.H{"retry_after_seconds": int(cooldownErr.Remaining.Seconds())},
-				"VERIFICATION_COOLDOWN",
-			))
-			return
-		}
-
-		c.JSON(http.StatusInternalServerError, utils.NewResponse(
-			c,
-			fmt.Sprintf("Failed to send verification code: %v", err),
-			nil,
-			"VERIFICATION_SEND_FAILED",
-		))
-		return
-	}
-
-	c.JSON(http.StatusOK, utils.NewResponse(
-		c,
-		"Verification code sent successfully",
-		gin.H{"retry_after_seconds": 60},
-		"",
-	))
-}
-
-func RegisterHandler(c *gin.Context) {
-	var req registerRequest
-	if err := c.ShouldBind(&req); err != nil {
+	verificationCredential, useRegistrationToken := req.verificationCredential()
+	if verificationCredential == "" {
 		c.JSON(http.StatusBadRequest, utils.NewResponse(
 			c,
 			"Invalid registration payload",
@@ -231,46 +189,13 @@ func RegisterHandler(c *gin.Context) {
 		))
 		return
 	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		fmt.Printf("failed to check email status for register: request_id=%s err=%v\n", utils.RequestIDFromContext(c), err)
 		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
-			fmt.Sprintf("Failed to check email status: %v", err),
+			"Failed to check email status",
 			nil,
 			"DATABASE_ERROR",
 		))
-		return
-	}
-
-	if err := service.VerifyVerificationCode(req.Email, req.Code); err != nil {
-		switch {
-		case errors.Is(err, service.ErrVerificationCodeNotFound):
-			c.JSON(http.StatusBadRequest, utils.NewResponse(
-				c,
-				"Verification code not found or expired",
-				nil,
-				"VERIFICATION_CODE_MISSING",
-			))
-		case errors.Is(err, service.ErrVerificationCodeExpired):
-			c.JSON(http.StatusBadRequest, utils.NewResponse(
-				c,
-				"Verification code has expired, please request a new one",
-				nil,
-				"VERIFICATION_CODE_EXPIRED",
-			))
-		case errors.Is(err, service.ErrVerificationCodeInvalid):
-			c.JSON(http.StatusBadRequest, utils.NewResponse(
-				c,
-				"Verification code is incorrect",
-				nil,
-				"VERIFICATION_CODE_INVALID",
-			))
-		default:
-			c.JSON(http.StatusInternalServerError, utils.NewResponse(
-				c,
-				fmt.Sprintf("Failed to verify code: %v", err),
-				nil,
-				"VERIFICATION_CHECK_FAILED",
-			))
-		}
 		return
 	}
 
@@ -292,6 +217,64 @@ func RegisterHandler(c *gin.Context) {
 			))
 		}
 		return
+	}
+
+	if useRegistrationToken {
+		if err := service.ConsumeRegistrationToken(req.Email, verificationCredential); err != nil {
+			switch {
+			case errors.Is(err, service.ErrRegistrationTokenNotFound):
+				c.JSON(http.StatusBadRequest, utils.NewResponse(
+					c,
+					"Registration token not found or expired",
+					nil,
+					"REGISTRATION_TOKEN_MISSING",
+				))
+			case errors.Is(err, service.ErrRegistrationTokenInvalid):
+				c.JSON(http.StatusBadRequest, utils.NewResponse(
+					c,
+					"Registration token is invalid",
+					nil,
+					"REGISTRATION_TOKEN_INVALID",
+				))
+			default:
+				fmt.Printf("failed to verify registration token for register: request_id=%s err=%v\n", utils.RequestIDFromContext(c), err)
+				c.JSON(http.StatusInternalServerError, utils.NewResponse(
+					c,
+					"Failed to verify registration token",
+					nil,
+					"REGISTRATION_TOKEN_CHECK_FAILED",
+				))
+			}
+			return
+		}
+	} else {
+		if err := service.VerifyVerificationCode(req.Email, verificationCredential); err != nil {
+			switch {
+			case errors.Is(err, service.ErrVerificationCodeNotFound):
+				c.JSON(http.StatusBadRequest, utils.NewResponse(
+					c,
+					"Verification code not found or expired",
+					nil,
+					"VERIFICATION_CODE_MISSING",
+				))
+			case errors.Is(err, service.ErrVerificationCodeInvalid):
+				c.JSON(http.StatusBadRequest, utils.NewResponse(
+					c,
+					"Verification code is incorrect",
+					nil,
+					"VERIFICATION_CODE_INVALID",
+				))
+			default:
+				fmt.Printf("failed to verify registration code for register: request_id=%s err=%v\n", utils.RequestIDFromContext(c), err)
+				c.JSON(http.StatusInternalServerError, utils.NewResponse(
+					c,
+					"Failed to verify verification code",
+					nil,
+					"VERIFICATION_CHECK_FAILED",
+				))
+			}
+			return
+		}
 	}
 	user := &models.User{
 		Username: req.Username,

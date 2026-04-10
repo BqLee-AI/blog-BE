@@ -24,6 +24,26 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Redis 服务
+  redis:
+    image: redis:7-alpine
+    container_name: blog-redis
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - blog-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # Go 应用服务
   app:
     build:
@@ -32,6 +52,8 @@ services:
     container_name: blog-app
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "${APP_PORT}:8080"
@@ -46,6 +68,8 @@ services:
       MAIL_PORT: ${MAIL_PORT}
       MAIL_USERNAME: ${MAIL_USERNAME}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       GIN_MODE: ${GIN_MODE:-release}
       GIN_TRUSTED_PROXIES: ${GIN_TRUSTED_PROXIES:-127.0.0.1,::1}
       JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH:-/app/secrets/jwt_private.pem}
@@ -66,6 +90,8 @@ services:
 # 命名卷用于数据持久化
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
 
 # 自定义网络

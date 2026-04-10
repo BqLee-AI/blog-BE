@@ -37,6 +37,7 @@ func SetupRouter() *gin.Engine {
 		auth := v1.Group("/auth")
 		auth.POST("/login", handler.LoginHandler)
 		auth.POST("/sendcode", handler.SendVerificationCodeHandler)
+		auth.POST("/verify-email", handler.VerifyEmailHandler)
 		// 刷新 token 和获取当前用户信息需要认证
 		auth.POST("/refresh", handler.RefreshTokenHandler)
 		// 获取当前用户信息接口需要 JWT 认证中间件保护
