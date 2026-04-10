@@ -23,7 +23,17 @@ type registerRequest struct {
 	Username          string `json:"username" form:"username" binding:"required"`
 	Email             string `json:"email" form:"email" binding:"required,email"`
 	Password          string `json:"password" form:"password" binding:"required"`
-	RegistrationToken string `json:"registration_token" form:"registration_token" binding:"required"`
+	RegistrationToken string `json:"registration_token" form:"registration_token"`
+	Code              string `json:"code" form:"code"`
+}
+
+func (r registerRequest) token() string {
+	token := strings.TrimSpace(r.RegistrationToken)
+	if token != "" {
+		return token
+	}
+
+	return strings.TrimSpace(r.Code)
 }
 
 func LoginHandler(c *gin.Context) {
@@ -159,6 +169,17 @@ func RegisterHandler(c *gin.Context) {
 		return
 	}
 
+	registrationToken := req.token()
+	if registrationToken == "" {
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
+			c,
+			"Invalid registration payload",
+			nil,
+			"INVALID_REQUEST",
+		))
+		return
+	}
+
 	if _, err := models.FindUserByEmail(req.Email); err == nil {
 		c.JSON(http.StatusConflict, utils.NewResponse(
 			c,
@@ -198,7 +219,7 @@ func RegisterHandler(c *gin.Context) {
 		return
 	}
 
-	if err := service.ConsumeRegistrationToken(req.Email, req.RegistrationToken); err != nil {
+	if err := service.ConsumeRegistrationToken(req.Email, registrationToken); err != nil {
 		switch {
 		case errors.Is(err, service.ErrRegistrationTokenNotFound):
 			c.JSON(http.StatusBadRequest, utils.NewResponse(
