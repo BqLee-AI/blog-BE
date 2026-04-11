@@ -2,10 +2,11 @@ package dao
 
 import (
 	"fmt"
-	"log"
 
 	"blog-BE/src/config"
+	"blog-BE/src/logger"
 
+	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -48,9 +49,10 @@ func InitPgSql() (err error) {
 func MyClose() {
 	sqlDB, err := DB.DB()
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Error("获取数据库连接失败", zap.Error(err))
+		return
 	}
 	if err := sqlDB.Close(); err != nil {
-		log.Fatal("数据库断开失败：", err)
+		logger.Log.Error("数据库断开失败", zap.Error(err))
 	}
 }
