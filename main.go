@@ -17,6 +17,9 @@ func main() {
 	if err := config.LoadConfig(".env"); err != nil {
 		log.Fatal("加载 .env 文件失败：", err)
 	}
+	if err := config.InitRedis(); err != nil {
+		log.Fatal("Redis 连接失败：", err)
+	}
 
 	// 设置 Gin 模式
 	gin.SetMode(config.AppConfig.GinMode)
@@ -29,7 +32,9 @@ func main() {
 	defer dao.MyClose()
 
 	// 模型绑定
-	dao.DB.AutoMigrate(&models.User{})
+	if err := dao.DB.AutoMigrate(&models.User{}, &models.Category{}, &models.Tag{}, &models.Article{}); err != nil {
+		log.Fatal("数据库迁移失败：", err)
+	}
 
 	router := routers.SetupRouter()
 

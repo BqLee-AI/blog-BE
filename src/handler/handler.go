@@ -1,57 +1,301 @@
 package handler
 
 import (
+	"blog-BE/src/middleware"
 	"blog-BE/src/models"
 	"blog-BE/src/service"
+	"blog-BE/src/utils"
+	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-func LoginHandler(c *gin.Context) {
-	email := c.PostForm("email")
-	password := c.PostForm("password")
-	user, err := models.FindUserByEmail(email)
+type loginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+}
 
-	if err != nil || user.Password != password {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Invalid email or password",
-		})
+type registerRequest struct {
+	Username          string `json:"username" form:"username" binding:"required"`
+	Email             string `json:"email" form:"email" binding:"required,email"`
+	Password          string `json:"password" form:"password" binding:"required"`
+	RegistrationToken string `json:"registration_token" form:"registration_token"`
+	Code              string `json:"code" form:"code"`
+}
+
+func (r registerRequest) verificationCredential() (string, bool) {
+	token := strings.TrimSpace(r.RegistrationToken)
+	if token != "" {
+		return token, true
+	}
+
+	return strings.TrimSpace(r.Code), false
+}
+
+func LoginHandler(c *gin.Context) {
+	var req loginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
+			c,
+			"Invalid login payload",
+			nil,
+			"INVALID_REQUEST",
+		))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
-	})
+	user, err := models.FindUserByEmail(req.Email)
+	if err != nil || !utils.CheckPassword(req.Password, user.Password) {
+		c.JSON(http.StatusUnauthorized, utils.NewResponse(
+			c,
+			"Invalid email or password",
+			nil,
+			"AUTH_FAILED",
+		))
+		return
+	}
+
+	tokens, err := utils.GenerateTokenPair(user.ID, user.Username, user.RoleID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
+			c,
+			"Failed to generate token",
+			nil,
+			"TOKEN_GENERATION_FAILED",
+		))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.NewResponse(
+		c,
+		"Login successful",
+		gin.H{
+			"user": gin.H{
+				"user_id":  user.ID,
+				"username": user.Username,
+				"email":    user.Email,
+				"role_id":  user.RoleID,
+			},
+			"tokens": gin.H{
+				"token_type":         "Bearer",
+				"access_token":       tokens.AccessToken,
+				"refresh_token":      tokens.RefreshToken,
+				"access_expires_at":  tokens.AccessExpiresAt,
+				"refresh_expires_at": tokens.RefreshExpiresAt,
+			},
+		},
+		"",
+	))
+}
+
+func RefreshTokenHandler(c *gin.Context) {
+	refreshToken := strings.TrimSpace(c.PostForm("refresh_token"))
+	if refreshToken == "" {
+		refreshToken = utils.ExtractBearerToken(c.GetHeader("Authorization"))
+	}
+	if refreshToken == "" {
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
+			c,
+			"Refresh token is required",
+			nil,
+			"TOKEN_MISSING",
+		))
+		return
+	}
+
+	tokens, err := utils.RefreshTokenPair(refreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, utils.NewResponse(
+			c,
+			"Invalid or expired refresh token",
+			nil,
+			"TOKEN_INVALID",
+		))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.NewResponse(
+		c,
+		"Token refreshed successfully",
+		gin.H{
+			"token_type":         "Bearer",
+			"access_token":       tokens.AccessToken,
+			"refresh_token":      tokens.RefreshToken,
+			"access_expires_at":  tokens.AccessExpiresAt,
+			"refresh_expires_at": tokens.RefreshExpiresAt,
+		},
+		"",
+	))
+}
+
+func MeHandler(c *gin.Context) {
+	claims, ok := middleware.ClaimsFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, utils.NewResponse(
+			c,
+			"Unauthorized",
+			nil,
+			"TOKEN_MISSING",
+		))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.NewResponse(
+		c,
+		"Token is valid",
+		gin.H{
+			"user_id":    claims.UserID,
+			"username":   claims.Username,
+			"role_id":    claims.RoleID,
+			"token_type": claims.TokenType,
+		},
+		"",
+	))
 }
 
 func RegisterHandler(c *gin.Context) {
-	username := c.PostForm("username")
-	email := c.PostForm("email")
-	password := c.PostForm("password")
-	code := c.PostForm("code")
-	user := &models.User{
-		Username: username,
-		Email:    email,
-		Password: password,
-		RoleID:   0,
-	}
-	// 验证码
-	realcode, err := service.SendMail("", email)
-	if err != nil || realcode == "" || realcode != code {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed to send verification code",
-		})
+	var req registerRequest
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
+			c,
+			"Invalid registration payload",
+			nil,
+			"INVALID_REQUEST",
+		))
 		return
 	}
 
-	if err := models.CreateUser(user); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Registration failed",
-		})
+	verificationCredential, useRegistrationToken := req.verificationCredential()
+	if verificationCredential == "" {
+		c.JSON(http.StatusBadRequest, utils.NewResponse(
+			c,
+			"Invalid registration payload",
+			nil,
+			"INVALID_REQUEST",
+		))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Registration successful",
-	})
+
+	if _, err := models.FindUserByEmail(req.Email); err == nil {
+		c.JSON(http.StatusConflict, utils.NewResponse(
+			c,
+			"Email is already registered",
+			nil,
+			"EMAIL_ALREADY_REGISTERED",
+		))
+		return
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		fmt.Printf("failed to check email status for register: request_id=%s err=%v\n", utils.RequestIDFromContext(c), err)
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
+			c,
+			"Failed to check email status",
+			nil,
+			"DATABASE_ERROR",
+		))
+		return
+	}
+
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		if errors.Is(err, utils.ErrPasswordTooLong) {
+			c.JSON(http.StatusBadRequest, utils.NewResponse(
+				c,
+				"Password is too long",
+				nil,
+				"PASSWORD_TOO_LONG",
+			))
+		} else {
+			c.JSON(http.StatusInternalServerError, utils.NewResponse(
+				c,
+				"Password hashing failed",
+				nil,
+				"PASSWORD_HASH_FAILED",
+			))
+		}
+		return
+	}
+
+	if useRegistrationToken {
+		if err := service.ConsumeRegistrationToken(req.Email, verificationCredential); err != nil {
+			switch {
+			case errors.Is(err, service.ErrRegistrationTokenNotFound):
+				c.JSON(http.StatusBadRequest, utils.NewResponse(
+					c,
+					"Registration token not found or expired",
+					nil,
+					"REGISTRATION_TOKEN_MISSING",
+				))
+			case errors.Is(err, service.ErrRegistrationTokenInvalid):
+				c.JSON(http.StatusBadRequest, utils.NewResponse(
+					c,
+					"Registration token is invalid",
+					nil,
+					"REGISTRATION_TOKEN_INVALID",
+				))
+			default:
+				fmt.Printf("failed to verify registration token for register: request_id=%s err=%v\n", utils.RequestIDFromContext(c), err)
+				c.JSON(http.StatusInternalServerError, utils.NewResponse(
+					c,
+					"Failed to verify registration token",
+					nil,
+					"REGISTRATION_TOKEN_CHECK_FAILED",
+				))
+			}
+			return
+		}
+	} else {
+		if err := service.VerifyVerificationCode(req.Email, verificationCredential); err != nil {
+			switch {
+			case errors.Is(err, service.ErrVerificationCodeNotFound):
+				c.JSON(http.StatusBadRequest, utils.NewResponse(
+					c,
+					"Verification code not found or expired",
+					nil,
+					"VERIFICATION_CODE_MISSING",
+				))
+			case errors.Is(err, service.ErrVerificationCodeInvalid):
+				c.JSON(http.StatusBadRequest, utils.NewResponse(
+					c,
+					"Verification code is incorrect",
+					nil,
+					"VERIFICATION_CODE_INVALID",
+				))
+			default:
+				fmt.Printf("failed to verify registration code for register: request_id=%s err=%v\n", utils.RequestIDFromContext(c), err)
+				c.JSON(http.StatusInternalServerError, utils.NewResponse(
+					c,
+					"Failed to verify verification code",
+					nil,
+					"VERIFICATION_CHECK_FAILED",
+				))
+			}
+			return
+		}
+	}
+	user := &models.User{
+		Username: req.Username,
+		Email:    req.Email,
+		Password: hashedPassword,
+		RoleID:   0,
+	}
+
+	if err := models.CreateUser(user); err != nil {
+		c.JSON(http.StatusInternalServerError, utils.NewResponse(
+			c,
+			"Registration failed",
+			nil,
+			"REGISTRATION_FAILED",
+		))
+		return
+	}
+	c.JSON(http.StatusOK, utils.NewResponse(
+		c,
+		"Registration successful",
+		gin.H{"user_id": user.ID},
+		"",
+	))
 }

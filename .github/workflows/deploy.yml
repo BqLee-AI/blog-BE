@@ -1,0 +1,43 @@
+name: Deploy Blog BE
+
+on:
+    push:
+        branches:
+            - develop
+    workflow_dispatch:
+
+concurrency:
+    group: deploy-blog-be-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version-file: go.mod
+                  cache: true
+
+            - name: Verify build
+              run: go test ./...
+
+            - name: Deploy to server
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.BLOG_DEPLOY_IP }}
+                  username: ${{ secrets.BLOG_DEPLOY_USER }}
+                  key: ${{ secrets.BLOG_DEPLOY_KEY }}
+                  port: ${{ secrets.BLOG_DEPLOY_PORT || 22 }}
+                  script_stop: true
+                  script: |
+                      set -e
+                      cd "${{ secrets.BLOG_DEPLOY_PATH }}"
+                      git fetch origin develop
+                      git reset --hard origin/develop
+                      docker compose up -d --build --remove-orphans
