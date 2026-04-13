@@ -190,7 +190,7 @@ func RegisterHandler(c *gin.Context) {
 		))
 		return
 	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		logger.Log.Error("failed to check email status for register",
+		logger.L().Error("failed to check email status for register",
 			zap.String("request_id", utils.RequestIDFromContext(c)),
 			zap.Error(err),
 		)
@@ -241,7 +241,7 @@ func RegisterHandler(c *gin.Context) {
 					"REGISTRATION_TOKEN_INVALID",
 				))
 			default:
-				logger.Log.Error("failed to verify registration token for register",
+				logger.L().Error("failed to verify registration token for register",
 					zap.String("request_id", utils.RequestIDFromContext(c)),
 					zap.Error(err),
 				)
@@ -272,7 +272,7 @@ func RegisterHandler(c *gin.Context) {
 					"VERIFICATION_CODE_INVALID",
 				))
 			default:
-				logger.Log.Error("failed to verify registration code for register",
+				logger.L().Error("failed to verify registration code for register",
 					zap.String("request_id", utils.RequestIDFromContext(c)),
 					zap.Error(err),
 				)

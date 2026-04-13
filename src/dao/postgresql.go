@@ -47,12 +47,19 @@ func InitPgSql() (err error) {
 }
 
 func MyClose() {
+	if DB == nil {
+		return
+	}
+
 	sqlDB, err := DB.DB()
 	if err != nil {
-		logger.Log.Error("获取数据库连接失败", zap.Error(err))
+		logger.L().Error("获取数据库连接失败", zap.Error(err))
+		return
+	}
+	if sqlDB == nil {
 		return
 	}
 	if err := sqlDB.Close(); err != nil {
-		logger.Log.Error("数据库断开失败", zap.Error(err))
+		logger.L().Error("数据库断开失败", zap.Error(err))
 	}
 }

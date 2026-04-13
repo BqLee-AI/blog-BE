@@ -18,7 +18,7 @@ func SetupRouter() *gin.Engine {
 	router.Use(gin.Recovery())
 	router.Use(middleware.CORSMiddleware())
 	if err := router.SetTrustedProxies(config.AppConfig.TrustedProxies); err != nil {
-		logger.Log.Fatal("failed to set trusted proxies", zap.Error(err))
+		logger.L().Fatal("failed to set trusted proxies", zap.Error(err))
 	}
 
 	v1 := router.Group("/api/v1")

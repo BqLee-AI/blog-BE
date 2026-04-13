@@ -16,11 +16,11 @@ func setupObservedLogger(t *testing.T) *observer.ObservedLogs {
 	t.Helper()
 
 	core, observed := observer.New(zap.InfoLevel)
-	originalLogger := appLogger.Log
-	appLogger.Log = zap.New(core)
+	originalLogger := appLogger.L()
+	appLogger.Set(zap.New(core))
 	t.Cleanup(func() {
-		_ = appLogger.Log.Sync()
-		appLogger.Log = originalLogger
+		_ = appLogger.L().Sync()
+		appLogger.Set(originalLogger)
 	})
 
 	return observed

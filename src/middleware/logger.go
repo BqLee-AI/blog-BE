@@ -28,11 +28,11 @@ func GinLogger() gin.HandlerFunc {
 
 			if len(c.Errors) > 0 || c.Writer.Status() >= http.StatusInternalServerError {
 				fields = append(fields, zap.String("errors", c.Errors.String()))
-				logger.Log.Error("HTTP Request", fields...)
+				logger.L().Error("HTTP Request", fields...)
 				return
 			}
 
-			logger.Log.Info("HTTP Request", fields...)
+			logger.L().Info("HTTP Request", fields...)
 		}()
 
 		c.Next()

@@ -43,7 +43,7 @@ func SendVerificationCodeHandler(c *gin.Context) {
 		))
 		return
 	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		logger.Log.Error("failed to check email status for send-code",
+		logger.L().Error("failed to check email status for send-code",
 			zap.String("request_id", utils.RequestIDFromContext(c)),
 			zap.Error(err),
 		)
@@ -68,7 +68,7 @@ func SendVerificationCodeHandler(c *gin.Context) {
 			return
 		}
 
-		logger.Log.Error("failed to send verification code",
+		logger.L().Error("failed to send verification code",
 			zap.String("request_id", utils.RequestIDFromContext(c)),
 			zap.Error(err),
 		)
@@ -131,7 +131,7 @@ func VerifyEmailHandler(c *gin.Context) {
 		return
 	}
 
-	logger.Log.Error("failed to verify email",
+	logger.L().Error("failed to verify email",
 		zap.String("request_id", utils.RequestIDFromContext(c)),
 		zap.Error(err),
 	)

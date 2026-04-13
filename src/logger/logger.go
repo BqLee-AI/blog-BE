@@ -1,23 +1,37 @@
 package logger
 
 import (
-	"sync"
+	"sync/atomic"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-var (
-	Log *zap.Logger = zap.NewNop()
-	mu  sync.Mutex
-)
+var logRef atomic.Pointer[zap.Logger]
+
+func init() {
+	logRef.Store(zap.NewNop())
+}
+
+func L() *zap.Logger {
+	if current := logRef.Load(); current != nil {
+		return current
+	}
+
+	return zap.NewNop()
+}
+
+func Set(l *zap.Logger) {
+	if l == nil {
+		l = zap.NewNop()
+	}
+
+	logRef.Store(l)
+}
 
 func InitLogger(env string) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	if Log != nil {
-		_ = Log.Sync()
+	if current := L(); current != nil {
+		_ = current.Sync()
 	}
 
 	config := zap.NewDevelopmentConfig()
@@ -32,20 +46,17 @@ func InitLogger(env string) {
 	config.EncoderConfig.EncodeDuration = zapcore.StringDurationEncoder
 	config.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
 
-	logger, err := config.Build(zap.AddStacktrace(zap.ErrorLevel))
+	instance, err := config.Build(zap.AddStacktrace(zap.ErrorLevel))
 	if err != nil {
-		Log = zap.NewNop()
+		Set(nil)
 		return
 	}
 
-	Log = logger
+	Set(instance)
 }
 
 func Sync() {
-	mu.Lock()
-	defer mu.Unlock()
-
-	if Log != nil {
-		_ = Log.Sync()
+	if current := L(); current != nil {
+		_ = current.Sync()
 	}
 }

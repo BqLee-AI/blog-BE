@@ -183,7 +183,7 @@ func GetArticle(c *gin.Context) {
 	}
 
 	if err := models.IncrementViewCount(uint(id)); err != nil {
-		logger.Log.Error("failed to increment article view count",
+		logger.L().Error("failed to increment article view count",
 			zap.Uint64("article_id", id),
 			zap.Error(err),
 		)
