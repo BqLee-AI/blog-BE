@@ -9,6 +9,10 @@ import (
 
 var logRef atomic.Pointer[zap.Logger]
 
+var buildLogger = func(config zap.Config) (*zap.Logger, error) {
+	return config.Build(zap.AddStacktrace(zap.ErrorLevel))
+}
+
 func init() {
 	logRef.Store(zap.NewNop())
 }
@@ -46,9 +50,8 @@ func InitLogger(env string) {
 	config.EncoderConfig.EncodeDuration = zapcore.StringDurationEncoder
 	config.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
 
-	instance, err := config.Build(zap.AddStacktrace(zap.ErrorLevel))
+	instance, err := buildLogger(config)
 	if err != nil {
-		Set(nil)
 		return
 	}
 
