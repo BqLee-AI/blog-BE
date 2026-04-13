@@ -13,9 +13,9 @@ import (
 func SetupRouter() *gin.Engine {
 	// 创建 Gin 引擎
 	router := gin.New()
-	router.Use(gin.Recovery())
 	router.Use(middleware.RequestIDMiddleware())
 	router.Use(middleware.GinLogger())
+	router.Use(gin.Recovery())
 	router.Use(middleware.CORSMiddleware())
 	if err := router.SetTrustedProxies(config.AppConfig.TrustedProxies); err != nil {
 		logger.Log.Fatal("failed to set trusted proxies", zap.Error(err))
