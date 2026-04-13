@@ -1,16 +1,17 @@
 package handler
 
 import (
+	"blog-BE/src/logger"
 	"blog-BE/src/middleware"
 	"blog-BE/src/models"
 	"blog-BE/src/service"
 	"blog-BE/src/utils"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -189,7 +190,10 @@ func RegisterHandler(c *gin.Context) {
 		))
 		return
 	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		fmt.Printf("failed to check email status for register: request_id=%s err=%v\n", utils.RequestIDFromContext(c), err)
+		logger.Log.Error("failed to check email status for register",
+			zap.String("request_id", utils.RequestIDFromContext(c)),
+			zap.Error(err),
+		)
 		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to check email status",
@@ -237,7 +241,10 @@ func RegisterHandler(c *gin.Context) {
 					"REGISTRATION_TOKEN_INVALID",
 				))
 			default:
-				fmt.Printf("failed to verify registration token for register: request_id=%s err=%v\n", utils.RequestIDFromContext(c), err)
+				logger.Log.Error("failed to verify registration token for register",
+					zap.String("request_id", utils.RequestIDFromContext(c)),
+					zap.Error(err),
+				)
 				c.JSON(http.StatusInternalServerError, utils.NewResponse(
 					c,
 					"Failed to verify registration token",
@@ -265,7 +272,10 @@ func RegisterHandler(c *gin.Context) {
 					"VERIFICATION_CODE_INVALID",
 				))
 			default:
-				fmt.Printf("failed to verify registration code for register: request_id=%s err=%v\n", utils.RequestIDFromContext(c), err)
+				logger.Log.Error("failed to verify registration code for register",
+					zap.String("request_id", utils.RequestIDFromContext(c)),
+					zap.Error(err),
+				)
 				c.JSON(http.StatusInternalServerError, utils.NewResponse(
 					c,
 					"Failed to verify verification code",

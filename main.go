@@ -47,5 +47,7 @@ func main() {
 	// 启动服务
 	addr := fmt.Sprintf(":%d", config.AppConfig.AppPort)
 	logger.Log.Info("服务启动", zap.String("addr", "http://localhost"+addr), zap.Int("port", config.AppConfig.AppPort))
-	router.Run(addr)
+	if err := router.Run(addr); err != nil {
+		logger.Log.Fatal("服务启动失败", zap.Error(err))
+	}
 }

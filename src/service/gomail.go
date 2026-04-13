@@ -44,7 +44,6 @@ func SendMail(mailFrom string, mailTo string, code string) error {
 	select {
 	case erBySend := <-sendResult:
 		if erBySend != nil {
-			fmt.Printf("base package SendMail send error:%v", erBySend.Error())
 			// error
 			return erBySend
 		}
