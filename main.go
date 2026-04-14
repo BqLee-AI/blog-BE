@@ -19,16 +19,17 @@ func main() {
 	defer logger.Sync()
 
 	// 加载配置文件
-	if err := config.LoadConfig(".env"); err != nil {
-		logger.L().Fatal("加载 .env 文件失败", zap.Error(err))
+	if err := config.LoadConfig(); err != nil {
+		logger.L().Fatal("加载配置失败", zap.Error(err))
 	}
-	logger.InitLogger(config.AppConfig.GinMode)
+	serverConfig := config.Get().Server
+	logger.InitLogger(serverConfig.Mode)
 	if err := config.InitRedis(); err != nil {
 		logger.L().Fatal("Redis 连接失败", zap.Error(err))
 	}
 
 	// 设置 Gin 模式
-	gin.SetMode(config.AppConfig.GinMode)
+	gin.SetMode(serverConfig.Mode)
 
 	// 创建数据库连接
 	if err := dao.InitPgSql(); err != nil {
@@ -45,8 +46,8 @@ func main() {
 	router := routers.SetupRouter()
 
 	// 启动服务
-	addr := fmt.Sprintf(":%d", config.AppConfig.AppPort)
-	logger.L().Info("服务启动", zap.String("addr", "http://localhost"+addr), zap.Int("port", config.AppConfig.AppPort))
+	addr := fmt.Sprintf(":%d", serverConfig.Port)
+	logger.L().Info("服务启动", zap.String("addr", "http://localhost"+addr), zap.Int("port", serverConfig.Port))
 	if err := router.Run(addr); err != nil {
 		logger.L().Fatal("服务启动失败", zap.Error(err))
 	}

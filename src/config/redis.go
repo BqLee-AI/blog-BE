@@ -11,10 +11,12 @@ import (
 var RedisClient *redis.Client
 
 func InitRedis() error {
+	redisConfig := Get().Redis
+
 	RedisClient = redis.NewClient(&redis.Options{
-		Addr:     getEnv("REDIS_ADDR", "localhost:6379"),
-		Password: getEnv("REDIS_PASSWORD", ""),
-		DB:       0,
+		Addr:     redisConfig.Addr,
+		Password: redisConfig.Password,
+		DB:       redisConfig.DB,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
