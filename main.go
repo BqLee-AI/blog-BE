@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"blog-BE/src/config"
 	"blog-BE/src/dao"
@@ -15,15 +14,17 @@ import (
 )
 
 func main() {
-	logger.InitLogger(os.Getenv("GIN_MODE"))
+	logger.InitLogger(config.Get().Server.Mode)
 	defer logger.Sync()
 
 	// 加载配置文件
 	if err := config.LoadConfig(); err != nil {
 		logger.L().Fatal("加载配置失败", zap.Error(err))
 	}
+
 	serverConfig := config.Get().Server
 	logger.InitLogger(serverConfig.Mode)
+
 	if err := config.InitRedis(); err != nil {
 		logger.L().Fatal("Redis 连接失败", zap.Error(err))
 	}
