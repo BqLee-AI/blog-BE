@@ -1,17 +1,18 @@
 package handler
 
 import (
+	"blog-BE/src/logger"
 	"blog-BE/src/middleware"
 	"blog-BE/src/models"
 	"blog-BE/src/models/request"
 	"blog-BE/src/utils"
 	"errors"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -182,7 +183,10 @@ func GetArticle(c *gin.Context) {
 	}
 
 	if err := models.IncrementViewCount(uint(id)); err != nil {
-		log.Printf("failed to increment article view count: article_id=%d err=%v", id, err)
+		logger.L().Error("failed to increment article view count",
+			zap.Uint64("article_id", id),
+			zap.Error(err),
+		)
 	} else {
 		article.ViewCount++
 	}

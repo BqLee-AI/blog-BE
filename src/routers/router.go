@@ -3,20 +3,23 @@ package routers
 import (
 	"blog-BE/src/config"
 	"blog-BE/src/handler"
+	"blog-BE/src/logger"
 	"blog-BE/src/middleware"
-	"log"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 func SetupRouter() *gin.Engine {
 	// 创建 Gin 引擎
-	router := gin.Default()
-	if err := router.SetTrustedProxies(config.AppConfig.TrustedProxies); err != nil {
-		log.Fatalf("failed to set trusted proxies: %v", err)
-	}
+	router := gin.New()
 	router.Use(middleware.RequestIDMiddleware())
+	router.Use(middleware.GinLogger())
+	router.Use(gin.Recovery())
 	router.Use(middleware.CORSMiddleware())
+	if err := router.SetTrustedProxies(config.AppConfig.TrustedProxies); err != nil {
+		logger.L().Fatal("failed to set trusted proxies", zap.Error(err))
+	}
 
 	v1 := router.Group("/api/v1")
 	{

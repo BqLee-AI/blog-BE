@@ -1,14 +1,15 @@
 package handler
 
 import (
+	"blog-BE/src/logger"
 	"blog-BE/src/models"
 	"blog-BE/src/service"
 	"blog-BE/src/utils"
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -42,7 +43,10 @@ func SendVerificationCodeHandler(c *gin.Context) {
 		))
 		return
 	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		log.Printf("failed to check email status for send-code: request_id=%s err=%v", utils.RequestIDFromContext(c), err)
+		logger.L().Error("failed to check email status for send-code",
+			zap.String("request_id", utils.RequestIDFromContext(c)),
+			zap.Error(err),
+		)
 		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to check email status",
@@ -64,7 +68,10 @@ func SendVerificationCodeHandler(c *gin.Context) {
 			return
 		}
 
-		log.Printf("failed to send verification code: request_id=%s err=%v", utils.RequestIDFromContext(c), err)
+		logger.L().Error("failed to send verification code",
+			zap.String("request_id", utils.RequestIDFromContext(c)),
+			zap.Error(err),
+		)
 		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
 			"Failed to send verification code",
@@ -124,7 +131,10 @@ func VerifyEmailHandler(c *gin.Context) {
 		return
 	}
 
-	log.Printf("failed to verify email: request_id=%s err=%v", utils.RequestIDFromContext(c), err)
+	logger.L().Error("failed to verify email",
+		zap.String("request_id", utils.RequestIDFromContext(c)),
+		zap.Error(err),
+	)
 	c.JSON(http.StatusInternalServerError, utils.NewResponse(
 		c,
 		"Failed to verify code",
