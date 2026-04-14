@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"blog-BE/src/config"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -38,10 +39,12 @@ type Claims struct {
 }
 
 var (
-	keyOnce      sync.Once
-	privateKey   *rsa.PrivateKey
-	publicKey    *rsa.PublicKey
-	loadKeyError error
+	keyMu            sync.RWMutex
+	privateKey       *rsa.PrivateKey
+	publicKey        *rsa.PublicKey
+	loadKeyError     error
+	loadedKeyVersion string
+	keysLoaded       bool
 )
 
 func GenerateTokenPair(userID uint, username string, roleID uint) (*TokenPair, error) {
@@ -146,14 +149,37 @@ func ExtractBearerToken(headerValue string) string {
 }
 
 func loadRSAKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
-	keyOnce.Do(func() {
-		privateKey, publicKey, loadKeyError = loadKeysFromEnv()
-	})
+	jwtConfig := config.Get().JWT
+	version := strings.Join([]string{
+		jwtConfig.PrivateKeyPath,
+		jwtConfig.PublicKeyPath,
+		jwtConfig.PrivateKey,
+		jwtConfig.PublicKey,
+	}, "\x00")
+
+	keyMu.RLock()
+	if keysLoaded && loadedKeyVersion == version {
+		defer keyMu.RUnlock()
+		return privateKey, publicKey, loadKeyError
+	}
+	keyMu.RUnlock()
+
+	keyMu.Lock()
+	defer keyMu.Unlock()
+
+	if keysLoaded && loadedKeyVersion == version {
+		return privateKey, publicKey, loadKeyError
+	}
+
+	privateKey, publicKey, loadKeyError = loadKeys(jwtConfig)
+	loadedKeyVersion = version
+	keysLoaded = true
+
 	return privateKey, publicKey, loadKeyError
 }
 
-func loadKeysFromEnv() (*rsa.PrivateKey, *rsa.PublicKey, error) {
-	privatePEM, err := getKeyMaterial("JWT_PRIVATE_KEY_PATH", "JWT_PRIVATE_KEY")
+func loadKeys(jwtConfig config.JWTConfig) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	privatePEM, err := getKeyMaterial(jwtConfig.PrivateKeyPath, jwtConfig.PrivateKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -168,7 +194,7 @@ func loadKeysFromEnv() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 		return nil, nil, fmt.Errorf("failed to parse JWT private key: %w", err)
 	}
 
-	publicPEM, publicErr := getOptionalKeyMaterial("JWT_PUBLIC_KEY_PATH", "JWT_PUBLIC_KEY")
+	publicPEM, publicErr := getOptionalKeyMaterial(jwtConfig.PublicKeyPath, jwtConfig.PublicKey)
 	if publicErr != nil {
 		return nil, nil, publicErr
 	}
@@ -190,7 +216,7 @@ func loadKeysFromEnv() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 }
 
 func getKeyMaterial(pathKey, valueKey string) (string, error) {
-	if path := strings.TrimSpace(os.Getenv(pathKey)); path != "" {
+	if path := strings.TrimSpace(pathKey); path != "" {
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return "", fmt.Errorf("failed to read key file %s: %w", path, err)
@@ -198,16 +224,16 @@ func getKeyMaterial(pathKey, valueKey string) (string, error) {
 		return strings.TrimSpace(string(content)), nil
 	}
 
-	value := strings.TrimSpace(os.Getenv(valueKey))
+	value := strings.TrimSpace(valueKey)
 	if value == "" {
-		return "", fmt.Errorf("missing JWT key material: set %s or %s", pathKey, valueKey)
+		return "", fmt.Errorf("missing JWT key material")
 	}
 
 	return normalizePEM(value), nil
 }
 
 func getOptionalKeyMaterial(pathKey, valueKey string) (string, error) {
-	if path := strings.TrimSpace(os.Getenv(pathKey)); path != "" {
+	if path := strings.TrimSpace(pathKey); path != "" {
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return "", fmt.Errorf("failed to read key file %s: %w", path, err)
@@ -215,7 +241,7 @@ func getOptionalKeyMaterial(pathKey, valueKey string) (string, error) {
 		return strings.TrimSpace(string(content)), nil
 	}
 
-	value := strings.TrimSpace(os.Getenv(valueKey))
+	value := strings.TrimSpace(valueKey)
 	if value == "" {
 		return "", nil
 	}
@@ -268,23 +294,17 @@ func signToken(privKey *rsa.PrivateKey, claims Claims) (string, error) {
 }
 
 func getAccessTTL() time.Duration {
-	return getDurationEnv("JWT_ACCESS_TTL", defaultAccessTTL)
+	ttl := config.Get().JWT.AccessExpire
+	if ttl <= 0 {
+		return defaultAccessTTL
+	}
+	return ttl
 }
 
 func getRefreshTTL() time.Duration {
-	return getDurationEnv("JWT_REFRESH_TTL", defaultRefreshTTL)
-}
-
-func getDurationEnv(name string, defaultValue time.Duration) time.Duration {
-	value := strings.TrimSpace(os.Getenv(name))
-	if value == "" {
-		return defaultValue
+	ttl := config.Get().JWT.RefreshExpire
+	if ttl <= 0 {
+		return defaultRefreshTTL
 	}
-
-	duration, err := time.ParseDuration(value)
-	if err != nil {
-		return defaultValue
-	}
-
-	return duration
+	return ttl
 }

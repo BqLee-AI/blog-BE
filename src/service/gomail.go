@@ -13,12 +13,14 @@ import (
 )
 
 func SendMail(mailFrom string, mailTo string, code string) error {
+	mailConfig := config.Get().Mail
+
 	// 接收消息的邮箱不能为空
 	if mailTo == "" {
 		return errors.New("mailTo:接收消息的邮箱不能为空")
 	}
 
-	fromAddress := config.AppConfig.MailUsername
+	fromAddress := mailConfig.Username
 	if mailFrom != "" {
 		fromAddress = mailFrom
 	}
@@ -33,7 +35,7 @@ func SendMail(mailFrom string, mailTo string, code string) error {
 	m.SetBody("text/html", retHTMLMessage(mailTo, code)) // 设置邮件正文
 
 	// 连接
-	dialer := gomail.NewDialer(config.AppConfig.MailHost, config.AppConfig.MailPort, config.AppConfig.MailUsername, config.AppConfig.MailPassword)
+	dialer := gomail.NewDialer(mailConfig.Host, mailConfig.Port, mailConfig.Username, mailConfig.Password)
 
 	// 发送
 	sendResult := make(chan error, 1)
