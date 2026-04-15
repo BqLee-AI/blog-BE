@@ -248,7 +248,7 @@ func configureViper(v *viper.Viper) {
 	bindEnv(v, "database.user", "DATABASE_USER", "DB_USER")
 	bindEnv(v, "database.password", "DATABASE_PASSWORD", "DB_PASSWORD")
 	bindEnv(v, "database.name", "DATABASE_NAME", "DB_NAME")
-	bindEnv(v, "database.ssl_mode", "DATABASE_SSL_MODE")
+	bindEnv(v, "database.ssl_mode", "DATABASE_SSL_MODE", "DB_SSLMODE")
 	bindEnv(v, "database.time_zone", "DATABASE_TIME_ZONE")
 
 	bindEnv(v, "redis.addr", "REDIS_ADDR")
@@ -461,7 +461,7 @@ func applyLegacyKeyMappings(v *viper.Viper) {
 		"database.user":          {"DATABASE_USER", "DB_USER"},
 		"database.password":      {"DATABASE_PASSWORD", "DB_PASSWORD"},
 		"database.name":          {"DATABASE_NAME", "DB_NAME"},
-		"database.ssl_mode":      {"DATABASE_SSL_MODE"},
+		"database.ssl_mode":      {"DATABASE_SSL_MODE", "DB_SSLMODE"},
 		"database.time_zone":     {"DATABASE_TIME_ZONE"},
 		"redis.addr":             {"REDIS_ADDR"},
 		"redis.password":         {"REDIS_PASSWORD"},
