@@ -91,6 +91,10 @@ func LoadConfig() error {
 		return err
 	}
 
+	if len(files) == 0 {
+		return nil
+	}
+
 	var watchErr error
 	watcherOnce.Do(func() {
 		watchErr = startConfigWatcher(files)
@@ -189,7 +193,7 @@ func resolveConfigFiles() ([]string, error) {
 			}
 		}
 		if len(files) == 0 {
-			return nil, fmt.Errorf("no config file found for APP_ENV=%q", env)
+			return nil, nil
 		}
 		return files, nil
 	}
@@ -209,10 +213,6 @@ func resolveConfigFiles() ([]string, error) {
 }
 
 func buildViper(files []string) (*viper.Viper, error) {
-	if len(files) == 0 {
-		return nil, fmt.Errorf("no config files provided")
-	}
-
 	v := viper.New()
 	configureViper(v)
 
@@ -286,7 +286,11 @@ func applyConfig(v *viper.Viper) error {
 	}
 
 	setCurrentConfig(nextConfig)
-	log.Printf("config loaded from %s", v.ConfigFileUsed())
+	if source := v.ConfigFileUsed(); source != "" {
+		log.Printf("config loaded from %s", source)
+	} else {
+		log.Printf("config loaded from environment variables and defaults")
+	}
 	return nil
 }
 

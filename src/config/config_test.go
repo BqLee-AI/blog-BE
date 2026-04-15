@@ -6,6 +6,32 @@ import (
 	"time"
 )
 
+func TestLoadConfigWithoutConfigFileUsesEnvAndDefaults(t *testing.T) {
+	t.Setenv("APP_ENV", "missing-env")
+	t.Setenv("APP_CONFIG_FILE", "")
+	t.Setenv("SERVER_PORT", "9191")
+	t.Setenv("DATABASE_HOST", "env-only-db")
+	t.Setenv("JWT_ACCESS_EXPIRE", "20m")
+
+	if err := LoadConfig(); err != nil {
+		t.Fatalf("LoadConfig returned error without config file: %v", err)
+	}
+
+	cfg := Get()
+	if cfg.Server.Port != 9191 {
+		t.Fatalf("expected server port 9191, got %d", cfg.Server.Port)
+	}
+	if cfg.Database.Host != "env-only-db" {
+		t.Fatalf("expected database host env-only-db, got %q", cfg.Database.Host)
+	}
+	if cfg.JWT.AccessExpire != 20*time.Minute {
+		t.Fatalf("expected access expire 20m, got %s", cfg.JWT.AccessExpire)
+	}
+	if cfg.Server.Mode != "debug" {
+		t.Fatalf("expected default server mode debug, got %q", cfg.Server.Mode)
+	}
+}
+
 func TestLoadConfigFromYAML(t *testing.T) {
 	t.Setenv("DB_PASSWORD", "")
 	t.Setenv("DATABASE_PASSWORD", "")
