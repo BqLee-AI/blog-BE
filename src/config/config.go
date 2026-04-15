@@ -178,18 +178,24 @@ func resolveConfigFiles() ([]string, error) {
 	}
 
 	if primaryFile == "" {
-		fallbackFile, fallbackErr := findFirstExistingFile(searchPaths, []string{fmt.Sprintf(".env.%s", env), ".env"})
-		if fallbackErr != nil {
-			return nil, fallbackErr
+		files := make([]string, 0, 2)
+		for _, candidate := range []string{".env", fmt.Sprintf(".env.%s", env)} {
+			file, fallbackErr := findFirstExistingFile(searchPaths, []string{candidate})
+			if fallbackErr != nil {
+				return nil, fallbackErr
+			}
+			if file != "" {
+				files = append(files, file)
+			}
 		}
-		if fallbackFile == "" {
+		if len(files) == 0 {
 			return nil, fmt.Errorf("no config file found for APP_ENV=%q", env)
 		}
-		return []string{fallbackFile}, nil
+		return files, nil
 	}
 
 	files := []string{primaryFile}
-	for _, candidate := range []string{fmt.Sprintf(".env.%s", env), ".env"} {
+	for _, candidate := range []string{".env", fmt.Sprintf(".env.%s", env)} {
 		overrideFile, overrideErr := findFirstExistingFile(searchPaths, []string{candidate})
 		if overrideErr != nil {
 			return nil, overrideErr
