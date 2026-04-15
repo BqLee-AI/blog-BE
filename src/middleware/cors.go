@@ -10,9 +10,7 @@ import (
 )
 
 func CORSMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		cors.New(buildCORSConfig())(c)
-	}
+	return cors.New(buildCORSConfig())
 }
 
 func buildCORSConfig() cors.Config {
