@@ -14,16 +14,14 @@ import (
 )
 
 func main() {
-	logger.InitLogger(config.Get().Server.Mode)
-	defer logger.Sync()
-
 	// 加载配置文件
 	if err := config.LoadConfig(); err != nil {
-		logger.L().Fatal("加载配置失败", zap.Error(err))
+		panic(fmt.Sprintf("加载配置失败: %v", err))
 	}
 
 	serverConfig := config.Get().Server
 	logger.InitLogger(serverConfig.Mode)
+	defer logger.Sync()
 
 	if err := config.InitRedis(); err != nil {
 		logger.L().Fatal("Redis 连接失败", zap.Error(err))
