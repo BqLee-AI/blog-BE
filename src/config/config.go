@@ -73,8 +73,6 @@ type CORSConfig struct {
 }
 
 var (
-	AppConfig *Config
-
 	currentConfig atomic.Pointer[Config]
 	watcherOnce   sync.Once
 )
@@ -431,7 +429,6 @@ func defaultConfig() Config {
 func setCurrentConfig(cfg Config) {
 	config := cfg
 	currentConfig.Store(&config)
-	AppConfig = &config
 }
 
 func setConfigFile(v *viper.Viper, filePath string) {
