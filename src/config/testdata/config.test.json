@@ -3,6 +3,6 @@
     "password": "json-password"
   },
   "jwt": {
-    "access_expire": 1800
+    "access_expire": "30m"
   }
 }
