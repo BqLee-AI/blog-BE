@@ -34,6 +34,8 @@ WORKDIR /app
 
 # 从构建阶段复制二进制文件
 COPY --from=builder /build/blog-api .
+COPY config.development.yaml ./
+COPY config.production.yaml ./
 
 # 设置文件权限
 RUN chown -R app:app /app

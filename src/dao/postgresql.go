@@ -16,14 +16,18 @@ var (
 )
 
 func InitPgSql() (err error) {
+	databaseConfig := config.Get().Database
+
 	// 构建连接字符串，使用配置中的数据库参数
 	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=Asia/Shanghai",
-		config.AppConfig.DBHost,
-		config.AppConfig.DBUser,
-		config.AppConfig.DBPassword,
-		config.AppConfig.DBName,
-		config.AppConfig.DBPort,
+		"host=%s user=%s password=%s dbname=%s port=%d sslmode=%s TimeZone=%s",
+		databaseConfig.Host,
+		databaseConfig.User,
+		databaseConfig.Password,
+		databaseConfig.Name,
+		databaseConfig.Port,
+		databaseConfig.SSLMode,
+		databaseConfig.TimeZone,
 	)
 
 	// 建立连接
@@ -39,9 +43,6 @@ func InitPgSql() (err error) {
 	if err = sqlDB.Ping(); err != nil {
 		return err
 	}
-
-	// 迁移模型
-	DB.AutoMigrate()
 
 	return nil
 }

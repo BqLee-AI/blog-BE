@@ -1,0 +1,49 @@
+server:
+  port: 8080
+  mode: release
+  trusted_proxies: []
+
+database:
+  host: localhost
+  port: 5432
+  user: admin
+  password: ""
+  name: mydb
+  ssl_mode: require
+  time_zone: Asia/Shanghai
+
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
+
+mail:
+  host: smtp.qq.com
+  port: 465
+  username: ""
+  password: ""
+
+jwt:
+  private_key_path: ./secrets/jwt_private.pem
+  public_key_path: ./secrets/jwt_public.pem
+  access_expire: 15m
+  refresh_expire: 168h
+
+cors:
+  allow_origins: []
+  allow_methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  allow_headers:
+    - Origin
+    - Content-Type
+    - Accept
+    - Authorization
+    - X-Requested-With
+  expose_headers:
+    - Content-Length
+  allow_credentials: false

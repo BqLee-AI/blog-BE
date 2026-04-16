@@ -1,42 +1,72 @@
 package middleware
 
 import (
-	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"blog-BE/src/config"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
+var (
+	corsHandlerMu sync.RWMutex
+	corsHandler   gin.HandlerFunc
+	corsSignature string
+)
+
 func CORSMiddleware() gin.HandlerFunc {
-	return cors.New(cors.Config{
-		AllowOrigins:     splitAndTrim(os.Getenv("CORS_ALLOW_ORIGINS"), []string{"http://localhost:5173", "http://127.0.0.1:5173"}),
-		AllowMethods:     splitAndTrim(os.Getenv("CORS_ALLOW_METHODS"), []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}),
-		AllowHeaders:     splitAndTrim(os.Getenv("CORS_ALLOW_HEADERS"), []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"}),
-		ExposeHeaders:    splitAndTrim(os.Getenv("CORS_EXPOSE_HEADERS"), []string{"Content-Length"}),
-		AllowCredentials: strings.EqualFold(os.Getenv("CORS_ALLOW_CREDENTIALS"), "true"),
-		MaxAge:           12 * time.Hour,
-	})
+	return func(c *gin.Context) {
+		getCORSHandler()(c)
+	}
 }
 
-func splitAndTrim(value string, defaultValues []string) []string {
-	if strings.TrimSpace(value) == "" {
-		return defaultValues
+func getCORSHandler() gin.HandlerFunc {
+	corsConfig := config.Get().CORS
+	signature := corsConfigSignature(corsConfig)
+
+	corsHandlerMu.RLock()
+	if corsHandler != nil && corsSignature == signature {
+		handler := corsHandler
+		corsHandlerMu.RUnlock()
+		return handler
+	}
+	corsHandlerMu.RUnlock()
+
+	corsHandlerMu.Lock()
+	defer corsHandlerMu.Unlock()
+
+	if corsHandler != nil && corsSignature == signature {
+		return corsHandler
 	}
 
-	parts := strings.Split(value, ",")
-	result := make([]string, 0, len(parts))
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed != "" {
-			result = append(result, trimmed)
-		}
+	corsSignature = signature
+	corsHandler = cors.New(buildCORSConfig(corsConfig))
+	return corsHandler
+}
+
+func buildCORSConfig(corsConfig config.CORSConfig) cors.Config {
+	return cors.Config{
+		AllowOrigins:     corsConfig.AllowOrigins,
+		AllowMethods:     corsConfig.AllowMethods,
+		AllowHeaders:     corsConfig.AllowHeaders,
+		ExposeHeaders:    corsConfig.ExposeHeaders,
+		AllowCredentials: corsConfig.AllowCredentials,
+		MaxAge:           12 * time.Hour,
+	}
+}
+
+func corsConfigSignature(corsConfig config.CORSConfig) string {
+	parts := []string{
+		strings.Join(corsConfig.AllowOrigins, ","),
+		strings.Join(corsConfig.AllowMethods, ","),
+		strings.Join(corsConfig.AllowHeaders, ","),
+		strings.Join(corsConfig.ExposeHeaders, ","),
+		strconv.FormatBool(corsConfig.AllowCredentials),
 	}
 
-	if len(result) == 0 {
-		return defaultValues
-	}
-
-	return result
+	return strings.Join(parts, "|")
 }

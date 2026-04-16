@@ -1,0 +1,8 @@
+{
+  "database": {
+    "password": "json-password"
+  },
+  "jwt": {
+    "access_expire": "30m"
+  }
+}
