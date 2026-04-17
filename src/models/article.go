@@ -89,11 +89,21 @@ func applyArticleListFilters(query *gorm.DB, status, keyword string, authorID ui
 		query = query.Where("author_id = ?", authorID)
 	}
 	if keyword != "" {
-		likeKeyword := "%" + keyword + "%"
-		query = query.Where("title LIKE ? OR summary LIKE ?", likeKeyword, likeKeyword)
+		likeKeyword := "%" + escapeLikePattern(keyword) + "%"
+		query = query.Where("title LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\'", likeKeyword, likeKeyword)
 	}
 
 	return query
+}
+
+func escapeLikePattern(keyword string) string {
+	replacer := strings.NewReplacer(
+		"\\", "\\\\",
+		"%", "\\%",
+		"_", "\\_",
+	)
+
+	return replacer.Replace(keyword)
 }
 
 func getArticleListOrder(sortBy string) string {
