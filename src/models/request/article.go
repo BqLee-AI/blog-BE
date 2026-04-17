@@ -20,4 +20,6 @@ type ArticleListReq struct {
 	Page     int    `form:"page" binding:"omitempty,min=1"`
 	PageSize int    `form:"page_size" binding:"omitempty,min=1,max=100"`
 	Status   string `form:"status" binding:"omitempty,oneof=draft published archived"`
+	Keyword  string `form:"keyword" binding:"omitempty,max=255"`
+	SortBy   string `form:"sort_by" binding:"omitempty,oneof=created_at view_count"`
 }
