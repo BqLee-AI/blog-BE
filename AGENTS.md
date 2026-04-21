@@ -22,7 +22,7 @@
 
 ### 分层职责
 
-- `handler/`：HTTP 请求解析、响应组装，不写业务逻辑，不直连数据库（auth 在 `auth_handler.go`）
+- `handler/`：HTTP 请求解析、响应组装，不写业务逻辑，不直连数据库。auth 分布在 `handler.go`（login/register/refresh/me）和 `auth_handler.go`（验证码发送/邮箱验证）
 - `service/`：跨模型编排、外部调用（邮件 `gomail.go`、验证码 `verification.go`），不感知 HTTP
 - `models/`：GORM 模型定义 + 单表 CRUD，DAO 方法挂在 model 上
 - `models/request/`：请求 DTO
