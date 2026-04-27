@@ -33,6 +33,7 @@ func TestLoadConfigWithoutConfigFileUsesEnvAndDefaults(t *testing.T) {
 }
 
 func TestLoadConfigFromYAML(t *testing.T) {
+	t.Setenv("DB_PASSWORD", "")
 	t.Setenv("DATABASE_PASSWORD", "")
 	t.Setenv("JWT_ACCESS_EXPIRE", "")
 	t.Setenv("JWT_ACCESS_TTL", "")
@@ -73,6 +74,7 @@ func TestLoadConfigFromJSONWithEnvOverride(t *testing.T) {
 }
 
 func TestLoadConfigFromEnvFile(t *testing.T) {
+	t.Setenv("DB_PASSWORD", "")
 	t.Setenv("DATABASE_PASSWORD", "")
 	t.Setenv("JWT_ACCESS_EXPIRE", "")
 	t.Setenv("JWT_ACCESS_TTL", "")
