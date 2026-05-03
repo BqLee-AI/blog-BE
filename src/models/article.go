@@ -3,6 +3,7 @@ package models
 import (
 	"blog-BE/src/dao"
 	"errors"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -54,35 +55,23 @@ func GetArticleWithAuthorByID(id uint) (*Article, error) {
 	return &article, nil
 }
 
-func GetArticles(page, pageSize int, status string, authorID uint, filterByAuthor bool) ([]Article, int64, error) {
+func GetArticles(page, pageSize int, status, keyword, sortBy string, authorID uint, filterByAuthor bool) ([]Article, int64, error) {
 	var articles []Article
 	var total int64
 
-	countQuery := dao.DB.Model(&Article{})
-	if status != "" {
-		countQuery = countQuery.Where("status = ?", status)
-	}
-	if filterByAuthor {
-		countQuery = countQuery.Where("author_id = ?", authorID)
-	}
+	countQuery := applyArticleListFilters(dao.DB.Model(&Article{}), status, keyword, authorID, filterByAuthor)
 	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	listQuery := dao.DB.Model(&Article{})
-	if status != "" {
-		listQuery = listQuery.Where("status = ?", status)
-	}
-	if filterByAuthor {
-		listQuery = listQuery.Where("author_id = ?", authorID)
-	}
+	listQuery := applyArticleListFilters(dao.DB.Model(&Article{}), status, keyword, authorID, filterByAuthor)
 
 	offset := (page - 1) * pageSize
 	if err := listQuery.
 		Preload("Author", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "username")
 		}).
-		Order("created_at DESC").
+		Order(getArticleListOrder(sortBy)).
 		Offset(offset).
 		Limit(pageSize).
 		Find(&articles).Error; err != nil {
@@ -90,6 +79,40 @@ func GetArticles(page, pageSize int, status string, authorID uint, filterByAutho
 	}
 
 	return articles, total, nil
+}
+
+func applyArticleListFilters(query *gorm.DB, status, keyword string, authorID uint, filterByAuthor bool) *gorm.DB {
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if filterByAuthor {
+		query = query.Where("author_id = ?", authorID)
+	}
+	if keyword != "" {
+		likeKeyword := "%" + escapeLikePattern(keyword) + "%"
+		query = query.Where("title LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\'", likeKeyword, likeKeyword)
+	}
+
+	return query
+}
+
+func escapeLikePattern(keyword string) string {
+	replacer := strings.NewReplacer(
+		"\\", "\\\\",
+		"%", "\\%",
+		"_", "\\_",
+	)
+
+	return replacer.Replace(keyword)
+}
+
+func getArticleListOrder(sortBy string) string {
+	switch strings.ToLower(sortBy) {
+	case "view_count":
+		return "view_count DESC, created_at DESC"
+	default:
+		return "created_at DESC"
+	}
 }
 
 func UpdateArticle(id uint, updates map[string]interface{}) error {

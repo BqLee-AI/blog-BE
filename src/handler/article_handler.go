@@ -113,8 +113,11 @@ func GetArticles(c *gin.Context) {
 	if req.PageSize <= 0 {
 		req.PageSize = 10
 	}
+	if req.SortBy == "" {
+		req.SortBy = "created_at"
+	}
 
-	articles, total, err := models.GetArticles(req.Page, req.PageSize, req.Status, authorID, filterByAuthor)
+	articles, total, err := models.GetArticles(req.Page, req.PageSize, req.Status, req.Keyword, req.SortBy, authorID, filterByAuthor)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.NewResponse(
 			c,
@@ -125,14 +128,20 @@ func GetArticles(c *gin.Context) {
 		return
 	}
 
+	totalPages := 0
+	if total > 0 {
+		totalPages = int((total + int64(req.PageSize) - 1) / int64(req.PageSize))
+	}
+
 	c.JSON(http.StatusOK, utils.NewResponse(
 		c,
 		"success",
 		gin.H{
-			"items":     newArticleListResponse(articles),
-			"total":     total,
-			"page":      req.Page,
-			"page_size": req.PageSize,
+			"items":       newArticleListResponse(articles),
+			"total":       total,
+			"page":        req.Page,
+			"page_size":   req.PageSize,
+			"total_pages": totalPages,
 		},
 		"",
 	))
