@@ -64,12 +64,13 @@ blog-BE/
 
 | 变量名 | 说明 | 默认值 |
 | --- | --- | --- |
-| `DB_HOST` | PostgreSQL 地址 | `localhost` |
-| `DB_PORT` | PostgreSQL 端口 | `5432` |
+| `DATABASE_HOST` | PostgreSQL 地址 | `localhost` |
+| `DATABASE_PORT` | PostgreSQL 端口 | `5432` |
 | `DB_HOST_PORT` | Docker Compose 下宿主机映射端口 | `5433` |
-| `DB_USER` | 数据库用户名 | `admin` |
-| `DB_PASSWORD` | 数据库密码 | `123456` |
-| `DB_NAME` | 数据库名称 | `mydb` |
+| `DATABASE_USER` | 数据库用户名 | `admin` |
+| `DATABASE_PASSWORD` | 数据库密码 | `123456` |
+| `DATABASE_NAME` | 数据库名称 | `mydb` |
+| `DB_*` | 旧数据库变量别名 | 兼容回退 |
 
 ### Redis
 
@@ -92,9 +93,10 @@ blog-BE/
 
 | 变量名 | 说明 | 默认值 |
 | --- | --- | --- |
-| `APP_PORT` | 服务端口 | `8080` |
-| `GIN_MODE` | Gin 运行模式 | `debug` |
-| `GIN_TRUSTED_PROXIES` | Gin 信任代理列表 | `127.0.0.1,::1` |
+| `SERVER_PORT` | 服务端口 | `8080` |
+| `SERVER_MODE` | 服务运行模式 | `debug` |
+| `SERVER_TRUSTED_PROXIES` | 服务信任代理列表 | `127.0.0.1,::1` |
+| `APP_PORT` / `GIN_*` | 旧服务变量别名 | 兼容回退 |
 
 ### JWT
 
@@ -102,8 +104,9 @@ blog-BE/
 | --- | --- | --- |
 | `JWT_PRIVATE_KEY_PATH` | JWT 私钥文件路径 | `/app/secrets/jwt_private.pem` |
 | `JWT_PUBLIC_KEY_PATH` | JWT 公钥文件路径 | `/app/secrets/jwt_public.pem` |
-| `JWT_ACCESS_TTL` | Access token 有效期 | `15m` |
-| `JWT_REFRESH_TTL` | Refresh token 有效期 | `168h` |
+| `JWT_ACCESS_EXPIRE` | Access token 有效期 | `15m` |
+| `JWT_REFRESH_EXPIRE` | Refresh token 有效期 | `168h` |
+| `JWT_*_TTL` | 旧 JWT 时长别名 | 兼容回退 |
 | `JWT_SECRETS_HOST_DIR` | Docker Compose 下宿主机 JWT 密钥目录 | `./secrets` |
 
 ### CORS
@@ -120,8 +123,9 @@ blog-BE/
 
 建议复制 [.env.example](.env.example) 为本地 `.env`，再根据运行方式调整：
 
-- 本地直连运行时，`DB_HOST=localhost`，`REDIS_ADDR=localhost:6379`
-- 使用 Docker Compose 时，应用容器会自动注入 `DB_HOST=db` 和 `REDIS_ADDR=redis:6379`
+- 本地直连运行时，优先使用 `DATABASE_HOST=localhost`、`REDIS_ADDR=localhost:6379`
+- 使用 Docker Compose 时，应用容器会自动注入 `DATABASE_HOST=db`、`DATABASE_PORT=5432` 和 `REDIS_ADDR=redis:6379`
+- 配置层仍兼容旧别名 `DB_*`、`APP_PORT`、`GIN_*`、`JWT_*_TTL`，但示例与 Compose 注入默认统一以 `DATABASE_*`、`SERVER_*`、`JWT_*_EXPIRE` 为准
 - JWT 密钥既可以挂载文件，也可以直接通过 `JWT_PRIVATE_KEY` 和 `JWT_PUBLIC_KEY` 注入 PEM 内容
 
 ## JWT 密钥初始化
@@ -183,7 +187,7 @@ docker compose restart app
 
 - `db` 服务使用 `.env` 中的数据库配置
 - `redis` 服务使用 `.env` 中的 Redis 配置
-- `app` 服务会显式注入数据库、邮件、Redis 和 JWT 相关环境变量
+- `app` 服务会显式注入数据库、邮件、Redis 和 JWT 相关环境变量，其中数据库与服务配置优先使用 `DATABASE_*`、`SERVER_*`，并回退兼容旧别名
 - `app` 服务会读取挂载到 `/app/secrets` 的 JWT PEM 文件
 - 数据分别持久化到 `postgres_data` 和 `redis_data` 卷
 
